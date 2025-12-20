@@ -1,6 +1,5 @@
 # Secrets
 .env
-.env.*
 
 # Local database/runtime files
 budget.db
