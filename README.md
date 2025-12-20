@@ -1,13 +1,16 @@
 # 💸 Telegram Budget Bot
 
-A personal Telegram bot to track expenses and budgets with:
+A personal Telegram bot to track expenses and budgets directly from Telegram.  
+Designed to be simple, transparent, and fully under your control.
 
-- 📊 Monthly overall budget
-- 🗂️ Categories (Food, Transport, Subscriptions, etc.)
-- ⏱️ Daily / Monthly / Yearly budget rules
-- 💱 Multi-currency expenses (auto-converted to CHF)
-- 🔁 Undo, monthly reset, full reset
-- 🧱 SQLite storage (local, simple, fast)
+Key highlights:
+
+- 📊 Monthly overall budget tracking
+- 🗂️ Category-based expenses (Food, Transport, Subscriptions, etc.)
+- ⏱️ Daily, Monthly, and Yearly budget rules
+- 💱 Multi-currency expenses with automatic conversion to CHF
+- 🔁 Undo last expense, monthly reset, full reset
+- 🧱 Local SQLite storage (no cloud, no third parties)
 
 All amounts are **computed and reported in CHF**, even when entered in foreign currencies.
 
@@ -16,44 +19,204 @@ All amounts are **computed and reported in CHF**, even when entered in foreign c
 ## Features
 
 ### Budgets
-- Set an overall monthly budget
-- See remaining budget at any time
-- View past months
+- Set an overall monthly budget that represents your maximum allowed spending
+- Instantly see how much money you still have available
+- Inspect past months to review historical spending
 
-### Budget rules
-- **Daily** budgets (e.g. Food 15 CHF/day)
-- **Monthly** budgets (e.g. Subscriptions)
-- **Yearly** budgets split across 12 months
-- Rules can be named (e.g. individual subscriptions)
+### Budget Rules
+Budget rules define your *planned* spending and are automatically aggregated per month.
+
+- **Daily rules**  
+  Example: `Food 15 CHF/day` → converted automatically based on number of days in the month
+
+- **Monthly rules**  
+  Example: `Subscriptions 35 CHF/month`
+
+- **Yearly rules**  
+  Example: `Car insurance 600 CHF/year` → automatically divided by 12
+
+- **Named rules**  
+  Useful for individual subscriptions (e.g. Netflix, PSN, Spotify)
+
+Rules are always stored internally in **CHF** to ensure consistent reporting.
 
 ### Expenses
-- Add expenses anytime
-- Optional currency (EUR, USD, etc.)
-- Automatic FX conversion to CHF
-- Undo last expense
-- Reset current month
+- Add expenses at any time via Telegram commands
+- Support for **foreign currencies** (EUR, USD, etc.)
+- Automatic FX conversion to CHF at entry time
+- Store both original amount and converted CHF amount
+- Undo the last expense of the current month
+- Reset all expenses for the current month
 
 ### FX Conversion
-- Uses ECB reference rates via **Frankfurter API**
-- Rates cached daily
-- Original amount + CHF stored
+- Uses ECB reference rates via the **Frankfurter API**
+- FX rates are fetched online and cached daily
+- Each expense stores:
+  - Original currency
+  - Original amount
+  - FX rate
+  - Converted CHF amount
 
 ---
 
-## Project structure
+## Project Structure
 
 ```text
 budget-bot/
 ├── .env                  # secrets (NOT committed)
-├── .env.example          # example env file
+├── .env.example          # environment variable template
 ├── .gitignore
 ├── requirements.txt
-├── main.py               # entry point
-├── budget.db             # SQLite DB (runtime)
+├── main.py               # application entry point
+├── budget.db             # SQLite database (created at runtime)
 └── src/
     ├── __init__.py
-    ├── config.py         # env + constants
-    ├── db.py             # schema & migrations
-    ├── fx.py             # FX API + caching
-    ├── services.py       # business logic
-    └── handlers.py       # Telegram commands
+    ├── config.py         # configuration & environment variables
+    ├── db.py             # database schema & migrations
+    ├── fx.py             # FX API integration & caching
+    ├── services.py       # business logic (budgets, rules, expenses)
+    └── handlers.py       # Telegram command handlers
+```
+
+## Requirements
+
+- Python **3.10+** (recommended: 3.11)
+- A Telegram account
+- A Telegram bot token (see below)
+
+---
+
+## Creating the Telegram Bot
+
+1. Open Telegram
+2. Search for **@BotFather**
+3. Start a chat and send:
+   ```text
+   /newbot
+   ```
+4. Choose:
+   - A display name (any text)
+   - A username ending in `bot` (e.g. `my_budget_bot`)
+
+5. Copy the token provided by BotFather
+
+```text
+123456789:AAHkxxxxxxxxxxxxxxxxxxxx
+```
+- If the token leaks:
+
+```text
+@BotFather
+/mybots
+(select your bot)
+Revoke token
+```
+
+## Installation
+
+### Clone the repository
+```bash
+git clone https://github.com/MirkoDeVita98/budget-bot.git
+cd budget-bot
+```
+
+### Create and activate a virtual environment
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+```
+
+### Install the Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+## Environment Variables
+`.env.example` (committed to git)
+```bash
+BOT_TOKEN=
+BASE_CURRENCY=CHF
+DB_PATH=budget.db
+```
+`.env` (local only, NOT committed)
+```bash
+BOT_TOKEN=PASTE_YOUR_TELEGRAM_BOT_TOKEN_HERE
+BASE_CURRENCY=CHF
+DB_PATH=budget.db
+```
+
+## Running the Bot
+```bash
+python main.py
+```
+On Telegram:
+```bash
+/start
+```
+
+## Usage Guide
+
+### Set Monthly Budget
+```bash
+/setbudget 3000
+```
+
+### Define Budget Rules
+- Daily rule
+```bash
+/setdaily Food 15
+```
+- Monthly rule
+```bash
+/setmonthly Rent 700
+```
+- Monthly rule with name and currency
+```bash
+/setmonthly PSN 16.99 EUR Subscription
+```
+- Yearly rule
+```bash
+/setyearly CarInsurance 600 Transport
+```
+- View and manage rules
+```bash
+/rules
+/delrule <id>
+```
+### Add Expenses
+- CHF expense
+```bash
+/add Food Groceries 62.40
+```
+- Foreign currency expense
+```bash
+/add Travel Taxi 20 EUR
+```
+### Reports
+```bash
+/status
+/status Food
+/month 2025-02
+```
+### Undo & Reset
+```bash
+/undo
+/resetmonth
+/resetall yes
+```
+⚠️ `/resetall yes` permanently deletes all stored data.
+
+## Data Storage
+- Uses a local SQLite database.
+`budget.db`
+- The schema is created automatically at startup.
+## Security Notes
+- Never commit .env
+- Never share your Telegram bot token
+- If exposed:
+```bash
+@BotFather
+/mybots
+Revoke token
+```
+
