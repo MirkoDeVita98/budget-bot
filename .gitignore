@@ -1,0 +1,37 @@
+# Secrets
+.env
+.env.*
+
+# Local database/runtime files
+budget.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+*.venv/
+*_venv/
+.expenses_venv311/
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Build / tooling
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
