@@ -114,7 +114,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Help:\n"
         "/help\n\n"
         "Tip (quotes for spaces):\n"
-        '/add "Food & Drinks" "Taxi to airport" 20 EUR\n'
+        '/add "Food & Drinks" "Pizza and Coke" 20 EUR\n'
         '/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"\n'
         '/status "Food & Drinks"',
     )
