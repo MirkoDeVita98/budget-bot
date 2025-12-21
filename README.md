@@ -16,7 +16,7 @@ Key highlights:
 - 📊 Monthly overall budget tracking
 - 🗂️ Category-based expenses (Food, Transport, Subscriptions, etc.)
 - ⏱️ Daily, Monthly, and Yearly budget rules
-- 💱 Multi-currency expenses with automatic conversion to CHF
+- 💱 Multi-currency expenses with automatic conversion to your **BASE_CURRENCY**
 - 🔁 Undo last expense, monthly reset, full reset
 - 🧱 Local SQLite storage (no cloud, no third parties)
 
