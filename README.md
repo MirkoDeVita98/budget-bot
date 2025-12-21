@@ -5,7 +5,6 @@
   <img src="assets/expense_bot_icon.png" alt="Budget Bot logo" width="120">
 </p>
 
-
 # 💸 Telegram Budget Bot
 
 A personal Telegram bot to track expenses and budgets directly from Telegram.  
@@ -13,11 +12,14 @@ Designed to be simple, transparent, and fully under your control.
 
 Key highlights:
 
-- 📊 Monthly overall budget tracking
+- 📊 Monthly overall budget tracking (auto-carried month to month)
 - 🗂️ Category-based expenses (Food, Transport, Subscriptions, etc.)
 - ⏱️ Daily, Monthly, and Yearly budget rules
+- 🧠 Automatic rule snapshots for historical months
 - 💱 Multi-currency expenses with automatic conversion to your **BASE_CURRENCY**
-- 🧾 List expenses with IDs (with optional month + limit) and delete specific ones  
+- 🧾 List expenses with IDs (filter by month / category / limit)
+- 🗑️ Delete specific expenses or rules by ID
+- 🔔 Budget & category alerts
 - 🔁 Undo last expense, monthly reset, full reset
 - 🧱 Local SQLite storage (no cloud, no third parties)
 
@@ -28,43 +30,59 @@ All amounts are **computed and reported in your BASE_CURRENCY**, even when enter
 ## Features
 
 ### Budgets
-- Set an overall monthly budget that represents your maximum allowed spending
-- Instantly see how much money you still have available
-- Inspect past months to review historical spending
+- Set an overall monthly budget (`/setbudget`)
+- Budget automatically carries forward if not explicitly set
+- Remaining budget is computed *after* planned rules and overspending
+- Reset a specific month’s budget with `/resetmonth [YYYY-MM]`
 
 ### Budget Rules
 Budget rules define your *planned* spending and are automatically aggregated per month.
 
 - **Daily rules**  
-  Example: `Food 15 CHF/day` → converted automatically based on number of days in the month
+  Example: `Food 15 CHF/day` → multiplied by days in the month
 
 - **Monthly rules**  
   Example: `Subscriptions 35 CHF/month`
 
 - **Yearly rules**  
-  Example: `Car insurance 600 CHF/year` → automatically divided by 12
+  Example: `Car insurance 600 CHF/year` → divided by 12
 
 - **Named rules**  
-  Useful for individual subscriptions (e.g. Netflix, PSN, Spotify)
+  Useful for subscriptions (Netflix, PSN, Spotify, etc.)
 
-Rules are always stored internally in **BASE_CURRENCY** to ensure consistent reporting. You can set it in the `.env`, e.g **BASE_CURRENCY=CHF**.
+Rules are stored internally in **BASE_CURRENCY** for consistency.
+
+#### 📌 Historical accuracy
+- When a new month starts, the bot **automatically snapshots the previous month’s rules**
+- Past months (`/month YYYY-MM`) always show the rules that were active at that time
+- No manual snapshot command needed
 
 ### Expenses
-- Add expenses at any time via Telegram commands
-- Support for **foreign currencies** (EUR, USD, etc.)
-- Automatic FX conversion to **BASE_CURRENCY** at entry time
-- Store both original amount and converted amount
-- Undo the last expense of the current month
-- Reset all expenses for the current month
+- Add expenses at any time
+- Supports **foreign currencies** (EUR, USD, etc.)
+- Automatic FX conversion to **BASE_CURRENCY**
+- Stores:
+  - Original amount
+  - Original currency
+  - FX rate & date
+  - Converted amount
+- Undo the last expense (`/undo`)
+- Delete specific expenses by ID (`/delexpense <id>`)
 
 ### FX Conversion
 - Uses ECB reference rates via the **Frankfurter API**
-- FX rates are fetched online and cached daily
-- Each expense stores:
-  - Original currency
-  - Original amount
-  - FX rate
-  - Converted **BASE_CURRENCY** amount
+- Rates are cached daily
+- Ensures deterministic historical conversions
+
+### Notifications (Alerts)
+The bot automatically notifies you when:
+
+- ⚠️ A **category budget** is exceeded
+- 🚨 The **overall monthly budget** is exceeded
+- 🔔 Remaining budget drops below a safe threshold
+- ℹ️ A **new unplanned category** is detected
+
+Alerts are triggered immediately after adding an expense.
 
 ---
 
@@ -78,13 +96,19 @@ budget-bot/
 ├── requirements.txt
 ├── main.py               # application entry point
 ├── budget.db             # SQLite database (created at runtime)
+├── assets/
+│   └── expense_bot_icon.png
 └── src/
     ├── __init__.py
     ├── config.py         # configuration & environment variables
     ├── db.py             # database schema & migrations
     ├── fx.py             # FX API integration & caching
     ├── services.py       # business logic (budgets, rules, expenses)
+    ├── alerts.py         # alert detection logic
+    ├── export_csv.py     # CSV exports
+    ├── textparse.py      # robust quoted argument parsing
     └── handlers.py       # Telegram command handlers
+
 ```
 
 ## Requirements
@@ -245,9 +269,9 @@ The limit parameter controls how many of the most recent expenses are shown, to 
 ```bash
 /undo
 ```
-- Reset current month expenses:
+- You can fully reset a month (expenses + budget) with:
 ```bash
-/resetmonth
+/resetmonth YYYY-MM
 ```
 - Reset everything:
 ```bash
@@ -255,18 +279,35 @@ The limit parameter controls how many of the most recent expenses are shown, to 
 ```
 ⚠️ `/resetall yes` permanently deletes all stored data.
 
-## Data Storage
-- Uses a local SQLite database `budget.db`.
-- The schema is created automatically at startup.
-## Security Notes
-- Never commit `.env`
-- Never share your Telegram bot token
-- If exposed:
-```bash
-@BotFather
-/mybots
-Revoke token
-```
+## Month Rollovers & Historical Consistency
+
+This bot is designed to keep your **financial history accurate and predictable**, even as your rules and budgets evolve over time.
+
+### How rollovers work
+
+#### 📅 Budgets
+- When a **new month starts**, if you haven’t explicitly set a budget yet:
+  - The bot **automatically carries forward** the last known budget.
+  - This happens only for the **current month**.
+- When viewing past months with `/month YYYY-MM`:
+  - Budgets are **read-only**
+  - No automatic carry or creation happens
+  - You only see what was actually set for that month
+
+### Rules (the important part)
+Rules are global by default, but to preserve history:
+- On the first interaction in a new month, the bot automatically:
+  - Creates a snapshot of the previous month’s rules
+  - Stores them internally as a frozen historical state
+- This happens automatically, without any manual command
+- As a result:
+  - Past months always reflect the rules that were active at that time
+  - Future changes to rules do not affect historical months
+This ensures:
+- `/status` → always reflects current planning
+- `/month YYYY-MM` → always reflects historical planning
+No cron jobs, no schedulers — snapshots are created lazily and safely on first use.
+
 ## Notifications (Alerts)
 
 The bot can automatically notify you when:
@@ -323,6 +364,21 @@ This sends the raw `budget.db` file containing all your data:
 ```bash
 /backupdb
 ```
+## Data Storage & Privacy
+- Local SQLite database only (budget.db)
+- No cloud services
+- No third-party data sharing
+- You fully own your data
+  
+## Security Notes
+- Never commit `.env`
+- Never share your Telegram bot token
+- If exposed:
+```bash
+@BotFather
+/mybots
+Revoke token
+```
 ## TODO / Future Improvements
 The following features are planned or under consideration:
 - 📄 Automatic expense extraction using a self-hosted LLM
@@ -337,10 +393,21 @@ The following features are planned or under consideration:
   - Category trends over time
   - Monthly comparisons
   - Forecasting based on past spending
-- 🔄 Improved automation
-  - Smarter rules
-  - Optional confirmations for imported expenses
-  - Confidence scores for LLM-parsed transactions
+- 🔄 Smarter rollovers
+  - Compare rule snapshots vs current rules
+  - Highlight what changed month-over-month:
+    - New rules added
+    - Rules removed
+    - Amount changes
+  - Optional command like:
+    ```bash
+    /rules diff 2025-11 2025-12
+    ```
+  - Or automatic summary:
+    ```text
+    “Rules changed since last month: +Subscriptions, −Transport, Food +50 CHF”
+    ```
+    
 ## License
 This project is licensed under the MIT License.
 You are free to:
