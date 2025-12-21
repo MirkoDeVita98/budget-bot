@@ -104,6 +104,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/undo\n\n"
         "Reports:\n"
         "/status [category]\n"
+        "/categories [YYYY-MM]\n"
         "/month YYYY-MM\n\n"
         "Export and Backup:\n"
         "/export [expenses|rules|budgets] [YYYY-MM]\n"
@@ -456,21 +457,30 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
     spent_by_cat, spent_total = compute_spent_this_month(user_id, m)
 
-    # Optional: /status <category> (supports quotes)
+    # args support quotes and smart quotes (via textparse)
     args = parse_quoted_args(update.message.text if update.message else "")
-    if args:
-        cat = " ".join(args).strip()
 
-        known_cats = sorted(set(planned_by_cat.keys()) | set(spent_by_cat.keys()))
-        if cat not in set(planned_by_cat.keys()) and cat not in set(
-            spent_by_cat.keys()
-        ):
-            if known_cats:
+    # Modes:
+    # - /status                 -> compact
+    # - /status full            -> full
+    # - /status <category...>   -> category detail (if category exists), else "not found"
+    want_full = any(a.lower() in ("full", "all") for a in args)
+    filtered_args = [a for a in args if a.lower() not in ("full", "all")]
+
+    all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
+    known_cats_sorted = sorted(all_cats)
+
+    # If user provided something besides "full", treat it as a category query
+    if filtered_args:
+        cat = " ".join(filtered_args).strip()
+
+        if cat not in all_cats:
+            if known_cats_sorted:
                 return await reply(
                     update,
                     context,
                     f"⚠️ Category not found: *{cat}*\n\nAvailable categories:\n"
-                    + "\n".join(f"- {c}" for c in known_cats),
+                    + "\n".join(f"- {c}" for c in known_cats_sorted),
                     parse_mode="Markdown",
                 )
             return await reply(
@@ -480,11 +490,13 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         planned = planned_by_cat.get(cat, 0.0)
         spent = spent_by_cat.get(cat, 0.0)
         remaining = planned - spent
+
         planned_label = (
             f"{planned:.2f} {BASE_CURRENCY}"
             if planned > 0
             else f"0.00 {BASE_CURRENCY} (unplanned)"
         )
+        tag = "✅" if remaining >= 0 else "⚠️"
 
         return await reply(
             update,
@@ -492,13 +504,11 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📅 {m} — *{cat}*\n"
             f"Planned: {planned_label}\n"
             f"Spent: {spent:.2f} {BASE_CURRENCY}\n"
-            f"Remaining (category): {remaining:.2f} {BASE_CURRENCY}",
+            f"{tag} Remaining (category): {remaining:.2f} {BASE_CURRENCY}",
             parse_mode="Markdown",
         )
 
-    # Overspend logic (category-aware)
-    all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
-
+    # Compute overspend beyond plan (reduces overall)
     overspend_total = 0.0
     overspend_by_cat = {}
     for c in all_cats:
@@ -509,19 +519,28 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         overspend_total += over
 
     remaining_overall = overall_budget - planned_total - overspend_total
+    remaining_tag = "✅" if remaining_overall >= 0 else "🚨"
 
-    # Unplanned spend (categories with planned=0)
     unplanned_spent = sum(
         spent_by_cat.get(c, 0.0)
         for c in spent_by_cat.keys()
         if planned_by_cat.get(c, 0.0) == 0.0
     )
 
-    # Make “remaining” easy to read
-    remaining_tag = "✅" if remaining_overall >= 0 else "🚨"
-    remaining_text = f"{remaining_overall:.2f} {BASE_CURRENCY}"
+    # Sort categories by importance:
+    # 1) overspend desc
+    # 2) spent desc
+    # 3) name asc
+    def sort_key(c: str):
+        return (-overspend_by_cat.get(c, 0.0), -spent_by_cat.get(c, 0.0), c.lower())
 
-    lines = [f"📅 {m} — Monthly summary"]
+    cats_sorted = sorted(all_cats, key=sort_key)
+
+    # Compact shows only top N categories (overspent + biggest spenders)
+    TOP_N = 8
+    show_cats = cats_sorted if want_full else cats_sorted[:TOP_N]
+
+    lines = [f"📅 {m} — {'Full' if want_full else 'Summary'}"]
 
     if carried:
         lines.append(
@@ -534,38 +553,97 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Planned (rules): {planned_total:.2f} {BASE_CURRENCY}",
         f"Spent (all expenses): {spent_total:.2f} {BASE_CURRENCY}",
         f"Unplanned spend: {unplanned_spent:.2f} {BASE_CURRENCY}",
-        f"Spent beyond plan (reduces budget): {overspend_total:.2f} {BASE_CURRENCY}",
+        f"Spent beyond plan: {overspend_total:.2f} {BASE_CURRENCY}",
         "——————————",
-        f"{remaining_tag} Remaining overall: {remaining_text}",
+        f"{remaining_tag} Remaining overall: {remaining_overall:.2f} {BASE_CURRENCY}",
         "",
-        "Legend:",
-        "• Planned = reserved by rules",
-        "• Spent beyond plan = only the part of spending that exceeds the plan per category",
-        "",
-        "By category (planned | spent | remaining):",
     ]
 
-    cats_sorted = sorted(all_cats)
-    if not cats_sorted:
+    if not want_full and len(cats_sorted) > TOP_N:
+        lines.append(
+            f"Top categories (showing {TOP_N}/{len(cats_sorted)}). Use `/status full` for all."
+        )
+        lines.append("")
+    else:
+        lines.append("By category (planned | spent | remaining):")
+
+    if not show_cats:
         lines.append("(no categories yet)")
     else:
-        for c in cats_sorted:
+        lines.append("By category (planned | spent | remaining):")
+        for c in show_cats:
             p = planned_by_cat.get(c, 0.0)
             s = spent_by_cat.get(c, 0.0)
             r = p - s
 
             # mark unplanned categories
-            cat_name = c
+            label = c
             if p == 0.0 and s > 0.0:
-                cat_name = f"{c} (unplanned)"
+                label = f"{c} (unplanned)"
 
-            # mark negative remaining
-            r_tag = "⚠️" if r < 0 else "✅"
+            r_tag = "✅" if r >= 0 else "⚠️"
+            over = overspend_by_cat.get(c, 0.0)
+            over_str = f"  (+{over:.2f} over)" if over > 0 else ""
 
             lines.append(
-                f"- {cat_name}: {p:.2f} | {s:.2f} | {r_tag} {r:.2f} {BASE_CURRENCY}"
+                f"- {label}: {p:.2f} | {s:.2f} | {r_tag} {r:.2f} {BASE_CURRENCY}{over_str}"
             )
 
+    # small footer hint
+    if not want_full:
+        lines += [
+            "",
+            "Tips:",
+            '• Use quotes for spaces: /status "Food & Drinks"',
+            "• See all categories: /status full",
+        ]
+
+    await reply(update, context, "\n".join(lines), parse_mode="Markdown")
+
+
+async def categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /categories [YYYY-MM]
+    Examples:
+      /categories
+      /categories 2025-12
+    """
+    user_id = update.effective_user.id
+    args = parse_quoted_args(update.message.text if update.message else "")
+
+    m = month_key()
+    if args:
+        m = args[0].strip()
+
+    if len(m) != 7 or m[4] != "-":
+        return await reply(
+            update,
+            context,
+            "Usage: /categories [YYYY-MM]\nExample: /categories 2025-12",
+        )
+
+    planned_by_cat, _ = compute_planned_monthly_from_rules(user_id, m)
+    spent_by_cat, _ = compute_spent_this_month(user_id, m)
+
+    cats = sorted(set(planned_by_cat.keys()) | set(spent_by_cat.keys()))
+    if not cats:
+        return await reply(update, context, f"📅 {m}\nNo categories yet.")
+
+    # Optional: show which are planned vs unplanned
+    lines = [f"📂 Categories for {m}:"]
+    for c in cats:
+        planned = planned_by_cat.get(c, 0.0) > 0.0
+        spent = spent_by_cat.get(c, 0.0) > 0.0
+        if planned:
+            tag = "planned"
+        elif spent:
+            tag = "unplanned"
+        else:
+            tag = ""
+        lines.append(f"- {c}" + (f" ({tag})" if tag else ""))
+
+    lines.append("")
+    lines.append('Tip: /status "Category Name"')
     await reply(update, context, "\n".join(lines))
 
 

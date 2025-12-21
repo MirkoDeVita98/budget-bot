@@ -25,6 +25,7 @@ def main():
     app.add_handler(CommandHandler("expenses", expenses))
     app.add_handler(CommandHandler("delexpense", delexpense))
     app.add_handler(CommandHandler("status", status))
+    app.add_handler(CommandHandler("categories", categories))
     app.add_handler(CommandHandler("month", month))
     app.add_handler(CommandHandler("export", export))
     app.add_handler(CommandHandler("backupdb", backupdb))
