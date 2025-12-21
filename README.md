@@ -248,6 +248,7 @@ The limit parameter controls how many of the most recent expenses are shown, to 
 /resetall yes
 ```
 ⚠️ `/resetall yes` permanently deletes all stored data.
+
 ## Data Storage
 - Uses a local SQLite database.
 `budget.db`
@@ -260,6 +261,56 @@ The limit parameter controls how many of the most recent expenses are shown, to 
 @BotFather
 /mybots
 Revoke token
+```
+## Notifications (Alerts)
+
+The bot can automatically notify you when:
+
+- ⚠️ You exceed a **category planned budget** (e.g. Food goes below 0)
+- 🚨 You exceed the **overall monthly budget**
+- 🔔 You are running low on remaining budget (default: < 10%)
+
+Alerts are triggered immediately after you add an expense:
+
+```text
+/add Food Groceries 120
+Example alert (category exceeded):
+⚠️ Category exceeded: Food
+Planned: 450.00 CHF
+Spent: 520.00 CHF
+Over: 70.00 CHF
+```
+Example alert (overall exceeded):
+```text
+🚨 Overall budget exceeded!
+Remaining overall is now: -25.40 CHF
+```
+
+## Export / Backup (CSV + SQLite)
+
+### Export to CSV
+
+Export the current month expenses (default):
+```bash
+/export
+```
+Export expenses for a specific month:
+```bash
+/export expenses 2025-12
+```
+Export your rules:
+```bash
+/export rules
+```
+Export your monthly budgets:
+```bash
+/export budgets
+```
+The bot will send you a downloadable `.csv` file.
+### Backup the SQLite database
+This sends the raw `budget.db` file containing all your data:
+```bash
+/backupdb
 ```
 ## TODO / Future Improvements
 The following features are planned or under consideration:

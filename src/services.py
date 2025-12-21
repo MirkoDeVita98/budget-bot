@@ -28,6 +28,52 @@ def looks_like_currency(s: str) -> bool:
 
 
 # ---- Budgets ----
+def ensure_month_budget(
+    user_id: int, month: str
+) -> Tuple[Optional[float], bool, Optional[str]]:
+    """
+    Returns (amount, was_carried, carried_from_month).
+
+    - If budget exists for `month` -> (amount, False, None)
+    - If not, copies the most recent previous budget into `month` (persisting it),
+      then -> (amount, True, <previous_month>)
+    - If no previous budget exists -> (None, False, None)
+    """
+    conn = db()
+
+    # 1) Already exists
+    row = conn.execute(
+        "SELECT amount FROM budgets WHERE user_id=? AND month=?",
+        (user_id, month),
+    ).fetchone()
+    if row:
+        conn.close()
+        return float(row["amount"]), False, None
+
+    # 2) Find most recent prior budget
+    row = conn.execute(
+        "SELECT month, amount FROM budgets WHERE user_id=? ORDER BY month DESC LIMIT 1",
+        (user_id,),
+    ).fetchone()
+
+    if not row:
+        conn.close()
+        return None, False, None
+
+    prev_month = str(row["month"])
+    amount = float(row["amount"])
+
+    # 3) Persist into requested month
+    conn.execute(
+        "INSERT INTO budgets(user_id, month, amount) VALUES (?, ?, ?)",
+        (user_id, month, amount),
+    )
+    conn.commit()
+    conn.close()
+
+    return amount, True, prev_month
+
+
 def upsert_budget(user_id: int, month: str, amount: float) -> None:
     conn = db()
     conn.execute(
