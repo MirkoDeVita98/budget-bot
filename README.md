@@ -250,8 +250,7 @@ The limit parameter controls how many of the most recent expenses are shown, to 
 ⚠️ `/resetall yes` permanently deletes all stored data.
 
 ## Data Storage
-- Uses a local SQLite database.
-`budget.db`
+- Uses a local SQLite database `budget.db`.
 - The schema is created automatically at startup.
 ## Security Notes
 - Never commit `.env`
@@ -272,9 +271,11 @@ The bot can automatically notify you when:
 
 Alerts are triggered immediately after you add an expense:
 
-```text
+```bash
 /add Food Groceries 120
+```
 Example alert (category exceeded):
+```text
 ⚠️ Category exceeded: Food
 Planned: 450.00 CHF
 Spent: 520.00 CHF
