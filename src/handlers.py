@@ -2,6 +2,7 @@ import io
 
 from telegram import InputFile, Update
 from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 
 from alerts import check_alerts_after_add
 from config import BASE_CURRENCY, DB_PATH
@@ -29,8 +30,64 @@ from services import (
 )
 
 
+async def reply(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    text: str,
+    *,
+    parse_mode: str | None = None,
+):
+    """
+    Safe reply helper:
+    - uses update.message.reply_text when available
+    - falls back to context.bot.send_message when update.message is None
+    """
+    chat = update.effective_chat
+    if update.message is not None:
+        return await update.message.reply_text(text, parse_mode=parse_mode)
+    if chat is not None:
+        return await context.bot.send_message(
+            chat_id=chat.id, text=text, parse_mode=parse_mode
+        )
+    return None
+
+
+async def reply_doc(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    fileobj,
+    *,
+    filename: str | None = None,
+    caption: str | None = None,
+):
+    """
+    Safe document sender:
+    - uses update.message.reply_document when available
+    - falls back to context.bot.send_document otherwise
+    """
+    chat = update.effective_chat
+
+    # Ensure Telegram sees a filename (helps clients + downloads)
+    if filename and hasattr(fileobj, "name") is False:
+        try:
+            fileobj.name = filename
+        except Exception:
+            pass
+
+    if update.message is not None:
+        return await update.message.reply_document(document=fileobj, caption=caption)
+    if chat is not None:
+        return await context.bot.send_document(
+            chat_id=chat.id, document=fileobj, caption=caption
+        )
+    return None
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
+
+    await reply(
+        update,
+        context,
         "💸 Budget Bot\n\n"
         "Setup:\n"
         "/setbudget <amount>\n"
@@ -59,7 +116,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Tip (quotes for spaces):\n"
         '/add "Food & Drinks" "Taxi to airport" 20 EUR\n'
         '/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"\n'
-        '/status "Food & Drinks"'
+        '/status "Food & Drinks"',
     )
 
 
@@ -72,20 +129,18 @@ async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if not args:
-        return await update.message.reply_text("Usage: /setbudget <amount>")
+        return await reply(update, context, "Usage: /setbudget <amount>")
 
     try:
         amount = parse_amount(args[0])
     except Exception:
-        return await update.message.reply_text(
-            "Couldn't parse amount. Example: /setbudget 2500"
+        return await reply(
+            update, context, "Couldn't parse amount. Example: /setbudget 2500"
         )
 
     m = month_key()
     upsert_budget(user_id, m, amount)
-    await update.message.reply_text(
-        f"✅ Set budget for {m}: {amount:.2f} {BASE_CURRENCY}"
-    )
+    await reply(update, context, f"✅ Set budget for {m}: {amount:.2f} {BASE_CURRENCY}")
 
 
 async def setdaily(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -93,22 +148,28 @@ async def setdaily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if len(args) < 2:
-        return await update.message.reply_text(
+        return await reply(
+            update,
+            context,
             "Usage: /setdaily <category> <amount_per_day>\n"
-            'Example: /setdaily "Food & Drinks" 15'
+            'Example: /setdaily "Food & Drinks" 15',
         )
 
     category = args[0].strip()
     try:
         amt = parse_amount(args[1])
     except Exception:
-        return await update.message.reply_text(
-            'Couldn\'t parse amount. Example: /setdaily "Food & Drinks" 15'
+        return await reply(
+            update,
+            context,
+            'Couldn\'t parse amount. Example: /setdaily "Food & Drinks" 15',
         )
 
     add_rule(user_id, category, f"{category} daily", "daily", amt)
-    await update.message.reply_text(
-        f"✅ Daily rule added: {category} = {amt:.2f} {BASE_CURRENCY}/day"
+    await reply(
+        update,
+        context,
+        f"✅ Daily rule added: {category} = {amt:.2f} {BASE_CURRENCY}/day",
     )
 
 
@@ -117,24 +178,30 @@ async def setyearly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if len(args) < 2:
-        return await update.message.reply_text(
+        return await reply(
+            update,
+            context,
             "Usage: /setyearly <name> <amount_per_year> [category]\n"
-            'Example: /setyearly "Car Insurance" 600 "Transport & Car"'
+            'Example: /setyearly "Car Insurance" 600 "Transport & Car"',
         )
 
     name = args[0].strip()
     try:
         amt = parse_amount(args[1])
     except Exception:
-        return await update.message.reply_text(
-            'Couldn\'t parse amount. Example: /setyearly "Car Insurance" 600'
+        return await reply(
+            update,
+            context,
+            'Couldn\'t parse amount. Example: /setyearly "Car Insurance" 600',
         )
 
     category = args[2].strip() if len(args) >= 3 else "Yearly"
 
     add_rule(user_id, category, name, "yearly", amt)
-    await update.message.reply_text(
-        f"✅ Yearly rule added: {name} ({category}) = {amt:.2f} {BASE_CURRENCY}/year (→ {amt/12:.2f}/month)"
+    await reply(
+        update,
+        context,
+        f"✅ Yearly rule added: {name} ({category}) = {amt:.2f} {BASE_CURRENCY}/year (→ {amt/12:.2f}/month)",
     )
 
 
@@ -143,13 +210,15 @@ async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if len(args) < 2:
-        return await update.message.reply_text(
+        return await reply(
+            update,
+            context,
             "Usage:\n"
             "1) /setmonthly <category> <amount>\n"
             "2) /setmonthly <name> <amount> [currency] <category>\n"
             "Examples:\n"
             '/setmonthly "Subscriptions" 35\n'
-            '/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"'
+            '/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"',
         )
 
     # Legacy mode: exactly 2 args
@@ -158,13 +227,17 @@ async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             amt = parse_amount(args[1])
         except Exception:
-            return await update.message.reply_text(
-                'Couldn\'t parse amount. Example: /setmonthly "Subscriptions" 35'
+            return await reply(
+                update,
+                context,
+                'Couldn\'t parse amount. Example: /setmonthly "Subscriptions" 35',
             )
 
         add_rule(user_id, category, f"{category} monthly", "monthly", amt)
-        return await update.message.reply_text(
-            f"✅ Monthly rule added: {category} = {amt:.2f} {BASE_CURRENCY}/month"
+        return await reply(
+            update,
+            context,
+            f"✅ Monthly rule added: {category} = {amt:.2f} {BASE_CURRENCY}/month",
         )
 
     # Named mode: last arg is category, optional currency before it
@@ -179,8 +252,10 @@ async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = parse_amount(args[amount_index])
     except Exception:
-        return await update.message.reply_text(
-            'Couldn\'t parse amount.\nExample: /setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"'
+        return await reply(
+            update,
+            context,
+            'Couldn\'t parse amount.\nExample: /setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"',
         )
 
     rule_name = " ".join(args[:amount_index]).strip() or "(no name)"
@@ -190,13 +265,17 @@ async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if currency == BASE_CURRENCY:
-        await update.message.reply_text(
-            f"✅ Monthly rule added: [{category}] {rule_name} = {chf_monthly:.2f} {BASE_CURRENCY}/month"
+        await reply(
+            update,
+            context,
+            f"✅ Monthly rule added: [{category}] {rule_name} = {chf_monthly:.2f} {BASE_CURRENCY}/month",
         )
     else:
-        await update.message.reply_text(
+        await reply(
+            update,
+            context,
             f"✅ Monthly rule added: [{category}] {rule_name}\n"
-            f"{amount:.2f} {currency}/month → {chf_monthly:.2f} {BASE_CURRENCY}/month (rate {rate:.6f}, {fx_date})"
+            f"{amount:.2f} {currency}/month → {chf_monthly:.2f} {BASE_CURRENCY}/month (rate {rate:.6f}, {fx_date})",
         )
 
 
@@ -204,7 +283,7 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     rows = list_rules(user_id)
     if not rows:
-        return await update.message.reply_text("No rules yet.")
+        return await reply(update, context, "No rules yet.")
 
     lines = [f"📌 Rules (stored in {BASE_CURRENCY}):"]
     for r in rows:
@@ -212,7 +291,7 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"- ID {r['id']}: [{r['category']}] {r['name']} — {float(r['amount']):.2f} {BASE_CURRENCY} / {r['period']}"
         )
     lines.append("\nDelete one with: /delrule <id>")
-    await update.message.reply_text("\n".join(lines))
+    await reply(update, context, "\n".join(lines))
 
 
 async def delrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -220,15 +299,15 @@ async def delrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if not args:
-        return await update.message.reply_text("Usage: /delrule <id>")
+        return await reply(update, context, "Usage: /delrule <id>")
 
     try:
         rid = int(args[0])
     except Exception:
-        return await update.message.reply_text("Rule id must be an integer.")
+        return await reply(update, context, "Rule id must be an integer.")
 
     ok = delete_rule(user_id, rid)
-    await update.message.reply_text("🗑️ Rule deleted." if ok else "⚠️ Rule not found.")
+    await reply(update, context, "🗑️ Rule deleted." if ok else "⚠️ Rule not found.")
 
 
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -239,11 +318,12 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
       /add "Food & Drinks" "Taxi to airport" 20 EUR
     """
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    text = update.message.text if update.message else ""
+    args = parse_quoted_args(text)
 
     if len(args) < 3:
-        return await update.message.reply_text(
-            "Usage: /add <category> <name> <amount> [currency]"
+        return await reply(
+            update, context, "Usage: /add <category> <name> <amount> [currency]"
         )
 
     category = args[0].strip()
@@ -256,32 +336,38 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name = " ".join(args[1:-1]).strip() or "(no name)"
     except Exception:
         if len(args) < 4:
-            return await update.message.reply_text(
-                "Usage: /add <category> <name> <amount> [currency]\nExample: /add Travel Taxi 20 EUR"
+            return await reply(
+                update,
+                context,
+                "Usage: /add <category> <name> <amount> [currency]\nExample: /add Travel Taxi 20 EUR",
             )
 
         currency = args[-1].strip().upper()
         if not looks_like_currency(currency):
-            return await update.message.reply_text(
-                "Currency must be a 3-letter code (EUR, USD, ...)."
+            return await reply(
+                update, context, "Currency must be a 3-letter code (EUR, USD, ...)."
             )
 
         try:
             amount = parse_amount(args[-2])
         except Exception:
-            return await update.message.reply_text(
-                "Couldn't parse amount. Example: /add Travel Taxi 20 EUR"
+            return await reply(
+                update,
+                context,
+                "Couldn't parse amount. Example: /add Travel Taxi 20 EUR",
             )
 
         name = " ".join(args[1:-2]).strip() or "(no name)"
 
     # BEFORE insert: baseline for alert crossings
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
-
-    # ensure budget exists (auto-carry) so overall alerts work
     overall_budget, carried, carried_from = ensure_month_budget(user_id, m)
-
     prev_spent_by_cat, prev_spent_total = compute_spent_this_month(user_id, m)
+
+    # ✅ Determine unplanned/new category BEFORE insert
+    has_plan = planned_by_cat.get(category, 0.0) > 0.0
+    had_spend_before = prev_spent_by_cat.get(category, 0.0) > 0.0
+    is_new_unplanned_category = (not has_plan) and (not had_spend_before)
 
     # Insert expense (with optional FX conversion)
     fx_date, rate, chf_amount = await add_expense_optional_fx(
@@ -304,46 +390,56 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Confirmation
     if currency == BASE_CURRENCY:
-        await update.message.reply_text(
-            f"✅ Added: [{category}] {name} = {chf_amount:.2f} {BASE_CURRENCY}"
+        await reply(
+            update,
+            context,
+            f"✅ Added: [{category}] {name} = {chf_amount:.2f} {BASE_CURRENCY}",
         )
     else:
-        await update.message.reply_text(
+        await reply(
+            update,
+            context,
             f"✅ Added: [{category}] {name}\n"
-            f"{amount:.2f} {currency} → {chf_amount:.2f} {BASE_CURRENCY} (rate {rate:.6f}, {fx_date})"
+            f"{amount:.2f} {currency} → {chf_amount:.2f} {BASE_CURRENCY} (rate {rate:.6f}, {fx_date})",
+        )
+
+    # ✅ Inform about new unplanned category (instead of "category exceeded")
+    if is_new_unplanned_category:
+        await reply(
+            update,
+            context,
+            f"ℹ️ New *unplanned* category detected: *{category}* (no rule set). "
+            f"It will count as unplanned spend until you add a rule.",
+            parse_mode="Markdown",
         )
 
     # Send alerts after confirmation
     for msg in alert_result.messages:
-        await update.message.reply_text(msg, parse_mode="Markdown")
+        await reply(update, context, msg, parse_mode="Markdown")
 
 
 async def undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message is None:
-        # Fallback for non-message updates
-        if update.effective_chat:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id, text="⚠️ Unsupported update type."
-            )
-        return
-
     user_id = update.effective_user.id
     m = month_key()
     row = delete_last_expense(user_id, m)
     if not row:
-        return await update.message.reply_text("Nothing to undo this month.")
+        return await reply(update, context, "Nothing to undo this month.")
 
     cur = row["currency"]
     orig = float(row["original_amount"])
     chf = float(row["chf_amount"])
 
     if cur == BASE_CURRENCY:
-        await update.message.reply_text(
-            f"↩️ Undid: [{row['category']}] {row['name']} = {chf:.2f} {BASE_CURRENCY}"
+        await reply(
+            update,
+            context,
+            f"↩️ Undid: [{row['category']}] {row['name']} = {chf:.2f} {BASE_CURRENCY}",
         )
     else:
-        await update.message.reply_text(
-            f"↩️ Undid: [{row['category']}] {row['name']} = {orig:.2f} {cur} (was {chf:.2f} {BASE_CURRENCY})"
+        await reply(
+            update,
+            context,
+            f"↩️ Undid: [{row['category']}] {row['name']} = {orig:.2f} {cur} (was {chf:.2f} {BASE_CURRENCY})",
         )
 
 
@@ -353,8 +449,8 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     overall_budget, carried, carried_from = ensure_month_budget(user_id, m)
     if overall_budget is None:
-        return await update.message.reply_text(
-            f"📅 {m}\nNo overall budget set. Use /setbudget <amount>"
+        return await reply(
+            update, context, f"📅 {m}\nNo overall budget set. Use /setbudget <amount>"
         )
 
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
@@ -364,14 +460,33 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
     if args:
         cat = " ".join(args).strip()
+
+        known_cats = sorted(set(planned_by_cat.keys()) | set(spent_by_cat.keys()))
+        if cat not in set(planned_by_cat.keys()) and cat not in set(
+            spent_by_cat.keys()
+        ):
+            if known_cats:
+                return await reply(
+                    update,
+                    context,
+                    "⚠️ Category not found: *{cat}*\n\n"
+                    "Available categories:\n" + "\n".join(f"- {c}" for c in known_cats),
+                    parse_mode="Markdown",
+                )
+            return await reply(
+                update, context, f"⚠️ Category not found: {cat}\n(no categories yet)"
+            )
+
         planned = planned_by_cat.get(cat, 0.0)
         spent = spent_by_cat.get(cat, 0.0)
         remaining = planned - spent
-        return await update.message.reply_text(
+        return await reply(
+            update,
+            context,
             f"📅 {m} — Category: {cat}\n"
             f"Planned: {planned:.2f} {BASE_CURRENCY}\n"
             f"Spent: -{spent:.2f} {BASE_CURRENCY}\n"
-            f"Remaining (category): {remaining:.2f} {BASE_CURRENCY}"
+            f"Remaining (category): {remaining:.2f} {BASE_CURRENCY}",
         )
 
     # category-aware overspend (includes unplanned categories)
@@ -418,7 +533,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
             s = spent_by_cat.get(c, 0.0)
             lines.append(f"- {c}: {p:.2f} → {s:.2f} → {(p - s):.2f} {BASE_CURRENCY}")
 
-    await update.message.reply_text("\n".join(lines))
+    await reply(update, context, "\n".join(lines))
 
 
 async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -426,20 +541,20 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if not args:
-        return await update.message.reply_text(
-            "Usage: /month YYYY-MM (example: /month 2025-12)"
+        return await reply(
+            update, context, "Usage: /month YYYY-MM (example: /month 2025-12)"
         )
 
     m = args[0].strip()
     if len(m) != 7 or m[4] != "-":
-        return await update.message.reply_text(
-            "Usage: /month YYYY-MM (example: /month 2025-12)"
+        return await reply(
+            update, context, "Usage: /month YYYY-MM (example: /month 2025-12)"
         )
 
     overall_budget, carried, carried_from = ensure_month_budget(user_id, m)
     if overall_budget is None:
-        return await update.message.reply_text(
-            f"📅 {m}\nNo overall budget set for this month."
+        return await reply(
+            update, context, f"📅 {m}\nNo overall budget set for this month."
         )
 
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
@@ -475,14 +590,14 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Remaining: {remaining_overall:.2f} {BASE_CURRENCY}",
     ]
 
-    await update.message.reply_text("\n".join(msg))
+    await reply(update, context, "\n".join(msg))
 
 
 async def resetmonth(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     m = month_key()
     n = reset_month_expenses(user_id, m)
-    await update.message.reply_text(f"🧹 Deleted {n} expenses for {m}.")
+    await reply(update, context, f"🧹 Deleted {n} expenses for {m}.")
 
 
 async def resetall(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -490,12 +605,12 @@ async def resetall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if not args or args[0].lower() != "yes":
-        return await update.message.reply_text(
-            "⚠️ This will DELETE ALL your data.\nRun: /resetall yes"
+        return await reply(
+            update, context, "⚠️ This will DELETE ALL your data.\nRun: /resetall yes"
         )
 
     reset_all_user_data(user_id)
-    await update.message.reply_text("🧨 All your budget data has been reset.")
+    await reply(update, context, "🧨 All your budget data has been reset.")
 
 
 async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -518,18 +633,22 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             limit = int(args[1])
         except Exception:
-            return await update.message.reply_text(
-                "Limit must be an integer. Example: /expenses 2025-12 50"
+            return await reply(
+                update,
+                context,
+                "Limit must be an integer. Example: /expenses 2025-12 50",
             )
 
     if len(m) != 7 or m[4] != "-":
-        return await update.message.reply_text(
-            "Usage: /expenses [YYYY-MM] [limit]\nExample: /expenses 2025-12 50"
+        return await reply(
+            update,
+            context,
+            "Usage: /expenses [YYYY-MM] [limit]\nExample: /expenses 2025-12 50",
         )
 
     rows = list_expenses(user_id, m, limit=limit)
     if not rows:
-        return await update.message.reply_text(f"No expenses for {m}.")
+        return await reply(update, context, f"No expenses for {m}.")
 
     lines = [f"🧾 Expenses for {m} (latest {min(limit, len(rows))}):"]
     for r in rows:
@@ -553,7 +672,7 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines.append("\nDelete one with:")
     lines.append("/delexpense <id>")
 
-    await update.message.reply_text("\n".join(lines))
+    await reply(update, context, "\n".join(lines))
 
 
 async def delexpense(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -564,20 +683,22 @@ async def delexpense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = parse_quoted_args(update.message.text)
 
     if not args:
-        return await update.message.reply_text(
-            "Usage: /delexpense <id>\nTip: use /expenses to see IDs."
+        return await reply(
+            update, context, "Usage: /delexpense <id>\nTip: use /expenses to see IDs."
         )
 
     try:
         eid = int(args[0])
     except Exception:
-        return await update.message.reply_text(
-            "Expense id must be an integer. Example: /delexpense 42"
+        return await reply(
+            update, context, "Expense id must be an integer. Example: /delexpense 42"
         )
 
     ok = delete_expense_by_id(user_id, eid)
-    await update.message.reply_text(
-        "🗑️ Expense deleted." if ok else "⚠️ Expense not found (or not yours)."
+    await reply(
+        update,
+        context,
+        "🗑️ Expense deleted." if ok else "⚠️ Expense not found (or not yours).",
     )
 
 
@@ -602,18 +723,22 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE):
         m = args[1].strip()
 
     if kind not in ("expenses", "rules", "budgets"):
-        return await update.message.reply_text(
+        return await reply(
+            update,
+            context,
             "Usage:\n"
             "/export\n"
             "/export expenses [YYYY-MM]\n"
             "/export rules\n"
-            "/export budgets"
+            "/export budgets",
         )
 
     if kind == "expenses":
         if len(m) != 7 or m[4] != "-":
-            return await update.message.reply_text(
-                "Month must be YYYY-MM (example: /export expenses 2025-12)"
+            return await reply(
+                update,
+                context,
+                "Month must be YYYY-MM (example: /export expenses 2025-12)",
             )
         data = export_expenses_csv(user_id, m)
         filename = f"expenses_{m}.csv"
@@ -627,9 +752,7 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bio = io.BytesIO(data)
     bio.name = filename
     bio.seek(0)
-    await update.message.reply_document(
-        document=InputFile(bio), caption=f"📄 {filename}"
-    )
+    await reply_doc(update, context, InputFile(bio), caption=f"📄 {filename}")
 
 
 async def backupdb(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -638,6 +761,4 @@ async def backupdb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Sends the raw SQLite database file. Contains ALL your data.
     """
     with open(DB_PATH, "rb") as f:
-        await update.message.reply_document(
-            document=f, caption="🗄️ budget.db backup (SQLite)"
-        )
+        await reply_doc(update, context, f, caption="🗄️ budget.db backup (SQLite)")

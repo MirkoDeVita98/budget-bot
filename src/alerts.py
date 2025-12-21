@@ -72,7 +72,8 @@ def check_alerts_after_add(
     prev_remaining_cat = p - s_prev
     new_remaining_cat = p - s_new
 
-    if prev_remaining_cat >= 0 and new_remaining_cat < 0:
+    # Only alert category exceeded if the category is planned (p > 0)
+    if p > 0 and prev_remaining_cat >= 0 and new_remaining_cat < 0:
         msgs.append(
             f"⚠️ Category exceeded: *{category}*\n"
             f"Planned: {p:.2f} {BASE_CURRENCY}\n"
