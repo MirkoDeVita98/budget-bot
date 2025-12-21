@@ -1,7 +1,8 @@
 import calendar
 from datetime import datetime
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, List
 
+import shlex
 from db import db
 from config import BASE_CURRENCY
 from fx import get_fx_rate, today_key
@@ -83,15 +84,6 @@ def upsert_budget(user_id: int, month: str, amount: float) -> None:
     )
     conn.commit()
     conn.close()
-
-
-def get_month_budget(user_id: int, month: str) -> Optional[float]:
-    conn = db()
-    row = conn.execute(
-        "SELECT amount FROM budgets WHERE user_id=? AND month=?", (user_id, month)
-    ).fetchone()
-    conn.close()
-    return float(row["amount"]) if row else None
 
 
 # ---- Rules ----

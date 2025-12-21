@@ -210,6 +210,12 @@ You can also use:
 ```bash
 /add Travel Taxi 20 EUR
 ```
+Tip: Use quotes for multi-word names or categories:
+```bash
+/add "Food & Drinks" "Migros groceries" 62.40
+/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+/status "Food & Drinks"
+```
 ### List and Delete Expenses
 - List expenses for the current month (default limit = 50):
 ```bash
