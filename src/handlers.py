@@ -469,7 +469,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return await reply(
                     update,
                     context,
-                    "⚠️ Category not found: *{cat}*\n\n"
+                    f"⚠️ Category not found: *{cat}*\n\n"
                     "Available categories:\n" + "\n".join(f"- {c}" for c in known_cats),
                     parse_mode="Markdown",
                 )
