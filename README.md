@@ -1,6 +1,11 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
+<p align="center">
+  <img src="assets/expense_bot_icon.png" alt="Budget Bot logo" width="120">
+</p>
+
+
 # 💸 Telegram Budget Bot
 
 A personal Telegram bot to track expenses and budgets directly from Telegram.  
