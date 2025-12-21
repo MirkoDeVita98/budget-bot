@@ -6,21 +6,26 @@ from db import db
 from config import BASE_CURRENCY
 from fx import get_fx_rate, today_key
 
+
 def month_key(dt: Optional[datetime] = None) -> str:
     dt = dt or datetime.now()
     return dt.strftime("%Y-%m")
+
 
 def days_in_month(month: str) -> int:
     y = int(month[:4])
     m = int(month[5:7])
     return calendar.monthrange(y, m)[1]
 
+
 def parse_amount(s: str) -> float:
     return float(s.strip().replace(",", "."))
+
 
 def looks_like_currency(s: str) -> bool:
     s = s.strip().upper()
     return len(s) == 3 and s.isalpha()
+
 
 # ---- Budgets ----
 def upsert_budget(user_id: int, month: str, amount: float) -> None:
@@ -33,14 +38,20 @@ def upsert_budget(user_id: int, month: str, amount: float) -> None:
     conn.commit()
     conn.close()
 
+
 def get_month_budget(user_id: int, month: str) -> Optional[float]:
     conn = db()
-    row = conn.execute("SELECT amount FROM budgets WHERE user_id=? AND month=?", (user_id, month)).fetchone()
+    row = conn.execute(
+        "SELECT amount FROM budgets WHERE user_id=? AND month=?", (user_id, month)
+    ).fetchone()
     conn.close()
     return float(row["amount"]) if row else None
 
+
 # ---- Rules ----
-def add_rule(user_id: int, category: str, name: str, period: str, amount_chf: float) -> None:
+def add_rule(
+    user_id: int, category: str, name: str, period: str, amount_chf: float
+) -> None:
     conn = db()
     conn.execute(
         "INSERT INTO rules(user_id, category, name, period, amount) VALUES (?, ?, ?, ?, ?)",
@@ -48,6 +59,7 @@ def add_rule(user_id: int, category: str, name: str, period: str, amount_chf: fl
     )
     conn.commit()
     conn.close()
+
 
 def list_rules(user_id: int):
     conn = db()
@@ -58,6 +70,7 @@ def list_rules(user_id: int):
     conn.close()
     return rows
 
+
 def delete_rule(user_id: int, rule_id: int) -> bool:
     conn = db()
     cur = conn.execute("DELETE FROM rules WHERE user_id=? AND id=?", (user_id, rule_id))
@@ -65,10 +78,15 @@ def delete_rule(user_id: int, rule_id: int) -> bool:
     conn.close()
     return cur.rowcount > 0
 
-def compute_planned_monthly_from_rules(user_id: int, month: str) -> Tuple[Dict[str, float], float]:
+
+def compute_planned_monthly_from_rules(
+    user_id: int, month: str
+) -> Tuple[Dict[str, float], float]:
     d = days_in_month(month)
     conn = db()
-    rows = conn.execute("SELECT category, period, amount FROM rules WHERE user_id=?", (user_id,)).fetchall()
+    rows = conn.execute(
+        "SELECT category, period, amount FROM rules WHERE user_id=?", (user_id,)
+    ).fetchall()
     conn.close()
 
     planned_by_cat: Dict[str, float] = {}
@@ -87,6 +105,7 @@ def compute_planned_monthly_from_rules(user_id: int, month: str) -> Tuple[Dict[s
         planned_by_cat[cat] = planned_by_cat.get(cat, 0.0) + monthly
 
     return planned_by_cat, sum(planned_by_cat.values())
+
 
 # ---- Expenses ----
 def insert_expense(
@@ -111,15 +130,26 @@ def insert_expense(
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
-            user_id, month, category, name,
-            chf_amount, datetime.now().isoformat(timespec="seconds"),
-            currency, original_amount, chf_amount, fx_rate, fx_date
+            user_id,
+            month,
+            category,
+            name,
+            chf_amount,
+            datetime.now().isoformat(timespec="seconds"),
+            currency,
+            original_amount,
+            chf_amount,
+            fx_rate,
+            fx_date,
         ),
     )
     conn.commit()
     conn.close()
 
-def compute_spent_this_month(user_id: int, month: str) -> Tuple[Dict[str, float], float]:
+
+def compute_spent_this_month(
+    user_id: int, month: str
+) -> Tuple[Dict[str, float], float]:
     conn = db()
     rows = conn.execute(
         """
@@ -134,6 +164,7 @@ def compute_spent_this_month(user_id: int, month: str) -> Tuple[Dict[str, float]
 
     spent_by_cat = {r["category"]: float(r["s"] or 0.0) for r in rows}
     return spent_by_cat, sum(spent_by_cat.values())
+
 
 def delete_last_expense(user_id: int, month: str):
     conn = db()
@@ -160,12 +191,16 @@ def delete_last_expense(user_id: int, month: str):
     conn.close()
     return row
 
+
 def reset_month_expenses(user_id: int, month: str) -> int:
     conn = db()
-    cur = conn.execute("DELETE FROM expenses WHERE user_id=? AND month=?", (user_id, month))
+    cur = conn.execute(
+        "DELETE FROM expenses WHERE user_id=? AND month=?", (user_id, month)
+    )
     conn.commit()
     conn.close()
     return cur.rowcount
+
 
 def reset_all_user_data(user_id: int) -> None:
     conn = db()
@@ -175,8 +210,11 @@ def reset_all_user_data(user_id: int) -> None:
     conn.commit()
     conn.close()
 
+
 # ---- Rule creation with optional FX (named monthly) ----
-async def add_monthly_rule_named_fx(user_id: int, rule_name: str, amount: float, currency: str, category: str):
+async def add_monthly_rule_named_fx(
+    user_id: int, rule_name: str, amount: float, currency: str, category: str
+):
     currency = currency.upper()
     if currency == BASE_CURRENCY:
         fx_date = today_key()
@@ -189,8 +227,11 @@ async def add_monthly_rule_named_fx(user_id: int, rule_name: str, amount: float,
     add_rule(user_id, category, rule_name, "monthly", chf)
     return fx_date, rate, chf
 
+
 # ---- Expense creation with optional FX ----
-async def add_expense_optional_fx(user_id: int, category: str, name: str, amount: float, currency: str, month: str):
+async def add_expense_optional_fx(
+    user_id: int, category: str, name: str, amount: float, currency: str, month: str
+):
     currency = currency.upper()
     if currency == BASE_CURRENCY:
         fx_date = today_key()
@@ -200,5 +241,15 @@ async def add_expense_optional_fx(user_id: int, category: str, name: str, amount
         fx_date, rate = await get_fx_rate(currency, BASE_CURRENCY)
         chf = float(amount) * float(rate)
 
-    insert_expense(user_id, month, category, name, chf, currency, float(amount), float(rate), str(fx_date))
+    insert_expense(
+        user_id,
+        month,
+        category,
+        name,
+        chf,
+        currency,
+        float(amount),
+        float(rate),
+        str(fx_date),
+    )
     return fx_date, rate, chf

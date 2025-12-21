@@ -7,9 +7,11 @@ from config import BASE_CURRENCY
 
 _FX_MEM_CACHE = {}  # (cache_day, from_ccy, to_ccy) -> rate
 
+
 def today_key(dt: datetime | None = None) -> str:
     dt = dt or datetime.now()
     return dt.strftime("%Y-%m-%d")
+
 
 async def get_fx_rate(from_ccy: str, to_ccy: str = BASE_CURRENCY) -> Tuple[str, float]:
     from_ccy = from_ccy.upper()

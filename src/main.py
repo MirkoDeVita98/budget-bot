@@ -4,6 +4,7 @@ from config import BOT_TOKEN
 from db import init_db
 from handlers import *
 
+
 def main():
     if not BOT_TOKEN:
         raise RuntimeError("Missing BOT_TOKEN in .env")
@@ -26,6 +27,7 @@ def main():
     app.add_handler(CommandHandler("resetall", resetall))
 
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
