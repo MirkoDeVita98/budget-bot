@@ -166,6 +166,37 @@ def compute_spent_this_month(
     return spent_by_cat, sum(spent_by_cat.values())
 
 
+def list_expenses(user_id: int, month: str, limit: int = 50):
+    conn = db()
+    rows = conn.execute(
+        """
+        SELECT
+            id, month, category, name, created_at,
+            COALESCE(currency, ?) AS currency,
+            COALESCE(original_amount, COALESCE(chf_amount, amount)) AS original_amount,
+            COALESCE(chf_amount, amount) AS chf_amount
+        FROM expenses
+        WHERE user_id=? AND month=?
+        ORDER BY id DESC
+        LIMIT ?
+        """,
+        (BASE_CURRENCY, user_id, month, int(limit)),
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def delete_expense_by_id(user_id: int, expense_id: int) -> bool:
+    conn = db()
+    cur = conn.execute(
+        "DELETE FROM expenses WHERE user_id=? AND id=?",
+        (user_id, int(expense_id)),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount > 0
+
+
 def delete_last_expense(user_id: int, month: str):
     conn = db()
     row = conn.execute(

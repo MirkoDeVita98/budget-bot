@@ -18,6 +18,8 @@ from services import (
     delete_last_expense,
     reset_month_expenses,
     reset_all_user_data,
+    list_expenses,
+    delete_expense_by_id,
 )
 
 
@@ -34,14 +36,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/delrule <id>\n\n"
         "Spending:\n"
         "/add <category> <name> <amount> [currency]\n"
+        "/expenses [YYYY-MM] [limit]\n"
+        "/delexpense <id>\n"
         "/undo\n\n"
         "Reports:\n"
         "/status [category]\n"
         "/month YYYY-MM\n\n"
         "Maintenance:\n"
         "/resetmonth\n"
-        "/resetall yes\n"
+        "/resetall yes\n\n"
+        "Help:\n"
+        "/help"
     )
+
+
+async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    return await start(update, context)
 
 
 async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -397,3 +407,83 @@ async def resetall(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     reset_all_user_data(user_id)
     await update.message.reply_text("🧨 All your budget data has been reset.")
+
+
+async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /expenses [YYYY-MM] [limit]
+    Examples:
+      /expenses
+      /expenses 2025-12
+      /expenses 2025-12 100
+    """
+    user_id = update.effective_user.id
+
+    # defaults
+    m = month_key()
+    limit = 50
+
+    if len(context.args) >= 1:
+        m = context.args[0].strip()
+    if len(context.args) >= 2:
+        try:
+            limit = int(context.args[1])
+        except Exception:
+            return await update.message.reply_text(
+                "Limit must be an integer. Example: /expenses 2025-12 50"
+            )
+
+    # basic validation for month format
+    if len(m) != 7 or m[4] != "-":
+        return await update.message.reply_text(
+            "Usage: /expenses [YYYY-MM] [limit]\nExample: /expenses 2025-12 50"
+        )
+
+    rows = list_expenses(user_id, m, limit=limit)
+    if not rows:
+        return await update.message.reply_text(f"No expenses for {m}.")
+
+    lines = [f"🧾 Expenses for {m} (latest {min(limit, len(rows))}):"]
+    for r in rows:
+        eid = r["id"]
+        cat = r["category"]
+        name = r["name"]
+        cur = r["currency"]
+        orig = float(r["original_amount"])
+        chf = float(r["chf_amount"])
+        created = (r["created_at"] or "")[:19].replace("T", " ")
+
+        if cur == BASE_CURRENCY:
+            lines.append(f"- ID {eid}: [{cat}] {name} — {chf:.2f} CHF ({created})")
+        else:
+            lines.append(
+                f"- ID {eid}: [{cat}] {name} — {orig:.2f} {cur} → {chf:.2f} CHF ({created})"
+            )
+
+    lines.append("\nDelete one with:")
+    lines.append("/delexpense <id>")
+
+    await update.message.reply_text("\n".join(lines))
+
+
+async def delexpense(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /delexpense <id>
+    """
+    user_id = update.effective_user.id
+    if not context.args:
+        return await update.message.reply_text(
+            "Usage: /delexpense <id>\nTip: use /expenses to see IDs."
+        )
+
+    try:
+        eid = int(context.args[0])
+    except Exception:
+        return await update.message.reply_text(
+            "Expense id must be an integer. Example: /delexpense 42"
+        )
+
+    ok = delete_expense_by_id(user_id, eid)
+    await update.message.reply_text(
+        "🗑️ Expense deleted." if ok else "⚠️ Expense not found (or not yours)."
+    )

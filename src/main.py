@@ -13,6 +13,7 @@ def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("help", help))
     app.add_handler(CommandHandler("setbudget", setbudget))
     app.add_handler(CommandHandler("setdaily", setdaily))
     app.add_handler(CommandHandler("setmonthly", setmonthly))
@@ -21,6 +22,8 @@ def main():
     app.add_handler(CommandHandler("delrule", delrule))
     app.add_handler(CommandHandler("add", add))
     app.add_handler(CommandHandler("undo", undo))
+    app.add_handler(CommandHandler("expenses", expenses))
+    app.add_handler(CommandHandler("delexpense", delexpense))
     app.add_handler(CommandHandler("status", status))
     app.add_handler(CommandHandler("month", month))
     app.add_handler(CommandHandler("resetmonth", resetmonth))
