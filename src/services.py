@@ -204,22 +204,40 @@ def compute_spent_this_month(
     return spent_by_cat, sum(spent_by_cat.values())
 
 
-def list_expenses(user_id: int, month: str, limit: int = 50):
+def list_expenses_filtered(
+    user_id: int, month: str, *, limit: int = 50, category: str | None = None
+):
     conn = db()
-    rows = conn.execute(
-        """
-        SELECT
-            id, month, category, name, created_at,
-            COALESCE(currency, ?) AS currency,
-            COALESCE(original_amount, COALESCE(chf_amount, amount)) AS original_amount,
-            COALESCE(chf_amount, amount) AS chf_amount
-        FROM expenses
-        WHERE user_id=? AND month=?
-        ORDER BY id DESC
-        LIMIT ?
-        """,
-        (BASE_CURRENCY, user_id, month, int(limit)),
-    ).fetchall()
+
+    if category:
+        rows = conn.execute(
+            """
+            SELECT id, month, category, name, created_at,
+                   COALESCE(currency, ?) AS currency,
+                   COALESCE(original_amount, COALESCE(chf_amount, amount)) AS original_amount,
+                   COALESCE(chf_amount, amount) AS chf_amount
+            FROM expenses
+            WHERE user_id=? AND month=? AND category=?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (BASE_CURRENCY, user_id, month, category, int(limit)),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            """
+            SELECT id, month, category, name, created_at,
+                   COALESCE(currency, ?) AS currency,
+                   COALESCE(original_amount, COALESCE(chf_amount, amount)) AS original_amount,
+                   COALESCE(chf_amount, amount) AS chf_amount
+            FROM expenses
+            WHERE user_id=? AND month=?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (BASE_CURRENCY, user_id, month, int(limit)),
+        ).fetchall()
+
     conn.close()
     return rows
 

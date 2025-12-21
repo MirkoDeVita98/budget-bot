@@ -19,7 +19,7 @@ from services import (
     delete_last_expense,
     delete_rule,
     ensure_month_budget,
-    list_expenses,
+    list_expenses_filtered,
     list_rules,
     looks_like_currency,
     month_key,
@@ -84,7 +84,6 @@ async def reply_doc(
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     await reply(
         update,
         context,
@@ -95,17 +94,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/setmonthly <category> <amount>\n"
         "/setmonthly <name> <amount> [currency] <category>\n"
         "/setyearly <name> <amount_per_year> [category]\n"
-        "/rules\n"
+        "/rules (shortcut: /r)\n"
         "/delrule <id>\n\n"
         "Spending:\n"
-        "/add <category> <name> <amount> [currency]\n"
-        "/expenses [YYYY-MM] [limit]\n"
+        "/add <category> <name> <amount> [currency] (shortcut: /a)\n"
+        "/expenses [YYYY-MM] [limit] [category] (shortcut: /e)\n"
         "/delexpense <id>\n"
-        "/undo\n\n"
+        "/undo (shortcut: /u)\n\n"
         "Reports:\n"
-        "/status [category]\n"
-        "/categories [YYYY-MM]\n"
-        "/month YYYY-MM\n\n"
+        "/status [category|full] (shortcut: /s)\n"
+        "/categories [YYYY-MM] (shortcut: /c)\n"
+        "/month YYYY-MM (shortcut: /m)\n\n"
         "Export and Backup:\n"
         "/export [expenses|rules|budgets] [YYYY-MM]\n"
         "/backupdb\n\n"
@@ -113,11 +112,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/resetmonth\n"
         "/resetall yes\n\n"
         "Help:\n"
-        "/help\n\n"
+        "/help (shortcut: /h)\n\n"
         "Tip (quotes for spaces):\n"
-        '/add "Food & Drinks" "Pizza and Coke" 20 EUR\n'
+        '/add "Food & Drinks" "Taxi to airport" 20 EUR\n'
         '/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"\n'
-        '/status "Food & Drinks"',
+        '/status "Food & Drinks"\n'
+        '/expenses 2025-12 "Food & Drinks" 50',
     )
 
 
@@ -649,7 +649,7 @@ async def categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = parse_quoted_args(update.message.text if update.message else "")
 
     if not args:
         return await reply(
@@ -672,13 +672,18 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     spent_by_cat, spent_total = compute_spent_this_month(user_id, m)
 
     all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
+
     overspend_total = 0.0
+    overspend_by_cat = {}
     for c in all_cats:
         p = planned_by_cat.get(c, 0.0)
         s = spent_by_cat.get(c, 0.0)
-        overspend_total += max(0.0, s - p)
+        over = max(0.0, s - p)
+        overspend_by_cat[c] = over
+        overspend_total += over
 
     remaining_overall = overall_budget - planned_total - overspend_total
+    remaining_tag = "✅" if remaining_overall >= 0 else "🚨"
 
     unplanned_spent = sum(
         spent_by_cat.get(c, 0.0)
@@ -686,22 +691,62 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if planned_by_cat.get(c, 0.0) == 0.0
     )
 
-    msg = [f"📅 {m}"]
+    # Sort by "importance": overspend desc, spent desc, name asc
+    def sort_key(c: str):
+        return (-overspend_by_cat.get(c, 0.0), -spent_by_cat.get(c, 0.0), c.lower())
+
+    cats_sorted = sorted(all_cats, key=sort_key)
+    TOP_N = 8
+    show_cats = cats_sorted[:TOP_N]
+
+    lines = [f"📅 {m} — Summary"]
+
     if carried:
-        msg.append(
+        lines.append(
             f"ℹ️ Budget auto-carried from {carried_from}: {overall_budget:.2f} {BASE_CURRENCY}"
         )
 
-    msg += [
-        f"Overall budget: {overall_budget:.2f} {BASE_CURRENCY}",
-        f"Reserved (planned rules): -{planned_total:.2f} {BASE_CURRENCY}",
-        f"Spent: -{spent_total:.2f} {BASE_CURRENCY}",
-        f"Unplanned spend: -{unplanned_spent:.2f} {BASE_CURRENCY}",
-        f"Overspend vs plan: -{overspend_total:.2f} {BASE_CURRENCY}",
-        f"Remaining: {remaining_overall:.2f} {BASE_CURRENCY}",
+    lines += [
+        "",
+        f"Budget: {overall_budget:.2f} {BASE_CURRENCY}",
+        f"Planned (rules): {planned_total:.2f} {BASE_CURRENCY}",
+        f"Spent (all expenses): {spent_total:.2f} {BASE_CURRENCY}",
+        f"Unplanned spend: {unplanned_spent:.2f} {BASE_CURRENCY}",
+        f"Spent beyond plan: {overspend_total:.2f} {BASE_CURRENCY}",
+        "——————————",
+        f"{remaining_tag} Remaining overall: {remaining_overall:.2f} {BASE_CURRENCY}",
+        "",
     ]
 
-    await reply(update, context, "\n".join(msg))
+    if len(cats_sorted) > TOP_N:
+        lines.append(
+            f"Top categories (showing {TOP_N}/{len(cats_sorted)}). Use `/status full` for all."
+        )
+        lines.append("")
+
+    lines.append("By category (planned | spent | remaining):")
+
+    if not show_cats:
+        lines.append("(no categories yet)")
+    else:
+        for c in show_cats:
+            p = planned_by_cat.get(c, 0.0)
+            s = spent_by_cat.get(c, 0.0)
+            r = p - s
+
+            label = c
+            if p == 0.0 and s > 0.0:
+                label = f"{c} (unplanned)"
+
+            r_tag = "✅" if r >= 0 else "⚠️"
+            over = overspend_by_cat.get(c, 0.0)
+            over_str = f"  (+{over:.2f} over)" if over > 0 else ""
+
+            lines.append(
+                f"- {label}: {p:.2f} | {s:.2f} | {r_tag} {r:.2f} {BASE_CURRENCY}{over_str}"
+            )
+
+    await reply(update, context, "\n".join(lines), parse_mode="Markdown")
 
 
 async def resetmonth(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -724,44 +769,82 @@ async def resetall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "🧨 All your budget data has been reset.")
 
 
+def _is_month_token(t: str) -> bool:
+    return len(t) == 7 and t[4] == "-" and t[:4].isdigit() and t[5:].isdigit()
+
+
+def _is_int_token(t: str) -> bool:
+    try:
+        int(t)
+        return True
+    except Exception:
+        return False
+
+
 async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    /expenses [YYYY-MM] [limit]
+    /expenses [YYYY-MM] [limit] ["Category Name"]
+    /expenses ["Category Name"] [limit]
+    /expenses [YYYY-MM] ["Category Name"] [limit]
     Examples:
       /expenses
       /expenses 2025-12
       /expenses 2025-12 100
+      /expenses "Food & Drinks"
+      /expenses "Food & Drinks" 100
+      /expenses 2025-12 "Food & Drinks" 100
     """
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = parse_quoted_args(update.message.text if update.message else "")
 
+    # defaults
     m = month_key()
     limit = 50
+    category = None
 
-    if len(args) >= 1:
-        m = args[0].strip()
-    if len(args) >= 2:
-        try:
-            limit = int(args[1])
-        except Exception:
-            return await reply(
-                update,
-                context,
-                "Limit must be an integer. Example: /expenses 2025-12 50",
-            )
+    # Parse flexible args
+    leftovers = []
+    for a in args:
+        if _is_month_token(a):
+            m = a
+        elif _is_int_token(a):
+            limit = int(a)
+        else:
+            leftovers.append(a)
 
-    if len(m) != 7 or m[4] != "-":
+    if leftovers:
+        category = " ".join(leftovers).strip()
+
+    if limit <= 0:
+        limit = 50
+    if limit > 500:
+        limit = 500  # prevent huge telegram messages
+
+    # Validate month format
+    if not _is_month_token(m):
         return await reply(
             update,
             context,
-            "Usage: /expenses [YYYY-MM] [limit]\nExample: /expenses 2025-12 50",
+            'Usage: /expenses [YYYY-MM] [limit] [category]\nExample: /expenses 2025-12 50 "Food & Drinks"',
         )
 
-    rows = list_expenses(user_id, m, limit=limit)
-    if not rows:
-        return await reply(update, context, f"No expenses for {m}.")
+    rows = list_expenses_filtered(user_id, m, limit=limit, category=category)
 
-    lines = [f"🧾 Expenses for {m} (latest {min(limit, len(rows))}):"]
+    title = f"🧾 Expenses for {m}"
+    if category:
+        title += f' — "{category}"'
+
+    if not rows:
+        return await reply(update, context, f"{title}\nNo expenses found.")
+
+    total = sum(float(r["chf_amount"]) for r in rows)
+
+    lines = [
+        f"{title} (latest {min(limit, len(rows))})",
+        f"Total shown: {total:.2f} {BASE_CURRENCY}",
+        "",
+    ]
+
     for r in rows:
         eid = r["id"]
         cat = r["category"]
@@ -780,8 +863,14 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"- ID {eid}: [{cat}] {name} — {orig:.2f} {cur} → {chf:.2f} {BASE_CURRENCY} ({created})"
             )
 
-    lines.append("\nDelete one with:")
-    lines.append("/delexpense <id>")
+    lines.append("")
+    lines.append("Delete one with: /delexpense <id>")
+
+    # Helpful usage tip
+    if category is None:
+        lines.append('Tip: filter by category: /expenses "Food & Drinks" 50')
+    else:
+        lines.append("Tip: remove filter: /expenses 2025-12 50")
 
     await reply(update, context, "\n".join(lines))
 
