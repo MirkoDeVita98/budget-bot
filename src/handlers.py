@@ -457,7 +457,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     spent_by_cat, spent_total = compute_spent_this_month(user_id, m)
 
     # Optional: /status <category> (supports quotes)
-    args = parse_quoted_args(update.message.text)
+    args = parse_quoted_args(update.message.text if update.message else "")
     if args:
         cat = " ".join(args).strip()
 
@@ -469,8 +469,8 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return await reply(
                     update,
                     context,
-                    f"⚠️ Category not found: *{cat}*\n\n"
-                    "Available categories:\n" + "\n".join(f"- {c}" for c in known_cats),
+                    f"⚠️ Category not found: *{cat}*\n\nAvailable categories:\n"
+                    + "\n".join(f"- {c}" for c in known_cats),
                     parse_mode="Markdown",
                 )
             return await reply(
@@ -480,33 +480,48 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         planned = planned_by_cat.get(cat, 0.0)
         spent = spent_by_cat.get(cat, 0.0)
         remaining = planned - spent
+        planned_label = (
+            f"{planned:.2f} {BASE_CURRENCY}"
+            if planned > 0
+            else f"0.00 {BASE_CURRENCY} (unplanned)"
+        )
+
         return await reply(
             update,
             context,
-            f"📅 {m} — Category: {cat}\n"
-            f"Planned: {planned:.2f} {BASE_CURRENCY}\n"
-            f"Spent: -{spent:.2f} {BASE_CURRENCY}\n"
+            f"📅 {m} — *{cat}*\n"
+            f"Planned: {planned_label}\n"
+            f"Spent: {spent:.2f} {BASE_CURRENCY}\n"
             f"Remaining (category): {remaining:.2f} {BASE_CURRENCY}",
+            parse_mode="Markdown",
         )
 
-    # category-aware overspend (includes unplanned categories)
+    # Overspend logic (category-aware)
     all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
+
     overspend_total = 0.0
+    overspend_by_cat = {}
     for c in all_cats:
         p = planned_by_cat.get(c, 0.0)
         s = spent_by_cat.get(c, 0.0)
-        overspend_total += max(0.0, s - p)
+        over = max(0.0, s - p)
+        overspend_by_cat[c] = over
+        overspend_total += over
 
     remaining_overall = overall_budget - planned_total - overspend_total
 
+    # Unplanned spend (categories with planned=0)
     unplanned_spent = sum(
         spent_by_cat.get(c, 0.0)
         for c in spent_by_cat.keys()
         if planned_by_cat.get(c, 0.0) == 0.0
     )
 
-    cats_sorted = sorted(all_cats)
-    lines = [f"📅 {m}"]
+    # Make “remaining” easy to read
+    remaining_tag = "✅" if remaining_overall >= 0 else "🚨"
+    remaining_text = f"{remaining_overall:.2f} {BASE_CURRENCY}"
+
+    lines = [f"📅 {m} — Monthly summary"]
 
     if carried:
         lines.append(
@@ -514,24 +529,42 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     lines += [
-        f"Overall budget: {overall_budget:.2f} {BASE_CURRENCY}",
-        f"Reserved (planned rules): -{planned_total:.2f} {BASE_CURRENCY}",
-        f"Spent (entered): -{spent_total:.2f} {BASE_CURRENCY}",
-        f"Unplanned spend: -{unplanned_spent:.2f} {BASE_CURRENCY}",
-        f"Overspend vs plan: -{overspend_total:.2f} {BASE_CURRENCY}",
-        "——————————",
-        f"Remaining overall: {remaining_overall:.2f} {BASE_CURRENCY}",
         "",
-        "By category (planned → spent → remaining):",
+        f"Budget: {overall_budget:.2f} {BASE_CURRENCY}",
+        f"Planned (rules): {planned_total:.2f} {BASE_CURRENCY}",
+        f"Spent (all expenses): {spent_total:.2f} {BASE_CURRENCY}",
+        f"Unplanned spend: {unplanned_spent:.2f} {BASE_CURRENCY}",
+        f"Spent beyond plan (reduces budget): {overspend_total:.2f} {BASE_CURRENCY}",
+        "——————————",
+        f"{remaining_tag} Remaining overall: {remaining_text}",
+        "",
+        "Legend:",
+        "• Planned = reserved by rules",
+        "• Spent beyond plan = only the part of spending that exceeds the plan per category",
+        "",
+        "By category (planned | spent | remaining):",
     ]
 
+    cats_sorted = sorted(all_cats)
     if not cats_sorted:
         lines.append("(no categories yet)")
     else:
         for c in cats_sorted:
             p = planned_by_cat.get(c, 0.0)
             s = spent_by_cat.get(c, 0.0)
-            lines.append(f"- {c}: {p:.2f} → {s:.2f} → {(p - s):.2f} {BASE_CURRENCY}")
+            r = p - s
+
+            # mark unplanned categories
+            cat_name = c
+            if p == 0.0 and s > 0.0:
+                cat_name = f"{c} (unplanned)"
+
+            # mark negative remaining
+            r_tag = "⚠️" if r < 0 else "✅"
+
+            lines.append(
+                f"- {cat_name}: {p:.2f} | {s:.2f} | {r_tag} {r:.2f} {BASE_CURRENCY}"
+            )
 
     await reply(update, context, "\n".join(lines))
 
