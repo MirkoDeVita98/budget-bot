@@ -47,7 +47,7 @@ Rules are always stored internally in **BASE_CURRENCY** to ensure consistent rep
 - Add expenses at any time via Telegram commands
 - Support for **foreign currencies** (EUR, USD, etc.)
 - Automatic FX conversion to **BASE_CURRENCY** at entry time
-- Store both original amount and converted CHF amount
+- Store both original amount and converted amount
 - Undo the last expense of the current month
 - Reset all expenses for the current month
 
