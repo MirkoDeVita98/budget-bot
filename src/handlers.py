@@ -283,7 +283,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cat = " ".join(context.args).strip()
         planned = planned_by_cat.get(cat, 0.0)
         spent = spent_by_cat.get(cat, 0.0)
-        remaining = planned - spent  # can go negative (overspend)
+        remaining = planned - spent  # can go negative
         return await update.message.reply_text(
             f"📅 {m} — Category: {cat}\n"
             f"Planned: {planned:.2f} {BASE_CURRENCY}\n"
@@ -291,52 +291,41 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Remaining (category): {remaining:.2f} {BASE_CURRENCY}"
         )
 
-    # do NOT subtract planned and spent together
-    reserved = planned_total
-    overspend = max(0.0, spent_total - planned_total)
-    remaining_overall = overall_budget - reserved - overspend
-    # equivalent: overall_budget - max(planned_total, spent_total)
+    # category-aware overspend (includes unplanned categories)
+    all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
+    overspend_total = 0.0
+    for c in all_cats:
+        p = planned_by_cat.get(c, 0.0)
+        s = spent_by_cat.get(c, 0.0)
+        overspend_total += max(0.0, s - p)
 
-    cats = sorted(set(planned_by_cat.keys()) | set(spent_by_cat.keys()))
+    remaining_overall = overall_budget - planned_total - overspend_total
+
+    # Nice extra: explicitly show unplanned spend amount
+    unplanned_spent = sum(
+        spent_by_cat.get(c, 0.0)
+        for c in spent_by_cat.keys()
+        if planned_by_cat.get(c, 0.0) == 0.0
+    )
+
+    cats_sorted = sorted(all_cats)
     lines = [
         f"📅 {m}",
         f"Overall budget: {overall_budget:.2f} {BASE_CURRENCY}",
-        f"Reserved (planned rules): -{reserved:.2f} {BASE_CURRENCY}",
+        f"Reserved (planned rules): -{planned_total:.2f} {BASE_CURRENCY}",
         f"Spent (entered): -{spent_total:.2f} {BASE_CURRENCY}",
-        f"Overspend vs plan: -{overspend:.2f} {BASE_CURRENCY}",
+        f"Unplanned spend: -{unplanned_spent:.2f} {BASE_CURRENCY}",
+        f"Overspend vs plan: -{overspend_total:.2f} {BASE_CURRENCY}",
         "——————————",
         f"Remaining overall: {remaining_overall:.2f} {BASE_CURRENCY}",
         "",
         "By category (planned → spent → remaining):",
     ]
 
-    if not cats:
+    if not cats_sorted:
         lines.append("(no categories yet)")
     else:
-        for c in cats:
-            p = planned_by_cat.get(c, 0.0)
-            s = spent_by_cat.get(c, 0.0)
-            lines.append(f"- {c}: {p:.2f} → {s:.2f} → {(p - s):.2f} {BASE_CURRENCY}")
-
-    await update.message.reply_text("\n".join(lines))
-
-    remaining_overall = overall_budget - planned_total - spent_total
-    cats = sorted(set(planned_by_cat.keys()) | set(spent_by_cat.keys()))
-
-    lines = [
-        f"📅 {m}",
-        f"Overall budget: {overall_budget:.2f} {BASE_CURRENCY}",
-        f"Planned from rules: -{planned_total:.2f} {BASE_CURRENCY}",
-        f"Spent (entered): -{spent_total:.2f} {BASE_CURRENCY}",
-        "——————————",
-        f"Remaining overall: {remaining_overall:.2f} {BASE_CURRENCY}",
-        "",
-        "By category (planned → spent → remaining):",
-    ]
-    if not cats:
-        lines.append("(no categories yet)")
-    else:
-        for c in cats:
+        for c in cats_sorted:
             p = planned_by_cat.get(c, 0.0)
             s = spent_by_cat.get(c, 0.0)
             lines.append(f"- {c}: {p:.2f} → {s:.2f} → {(p - s):.2f} {BASE_CURRENCY}")
@@ -366,18 +355,29 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
     spent_by_cat, spent_total = compute_spent_this_month(user_id, m)
 
-    # ✅ FIX: do NOT subtract planned and spent together
-    reserved = planned_total
-    overspend = max(0.0, spent_total - planned_total)
-    remaining_overall = overall_budget - reserved - overspend
-    # equivalent: overall_budget - max(planned_total, spent_total)
+    # category-aware overspend (includes unplanned categories)
+    all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
+    overspend_total = 0.0
+    for c in all_cats:
+        p = planned_by_cat.get(c, 0.0)
+        s = spent_by_cat.get(c, 0.0)
+        overspend_total += max(0.0, s - p)
+
+    remaining_overall = overall_budget - planned_total - overspend_total
+
+    unplanned_spent = sum(
+        spent_by_cat.get(c, 0.0)
+        for c in spent_by_cat.keys()
+        if planned_by_cat.get(c, 0.0) == 0.0
+    )
 
     await update.message.reply_text(
         f"📅 {m}\n"
         f"Overall budget: {overall_budget:.2f} {BASE_CURRENCY}\n"
-        f"Reserved (planned rules): -{reserved:.2f} {BASE_CURRENCY}\n"
+        f"Reserved (planned rules): -{planned_total:.2f} {BASE_CURRENCY}\n"
         f"Spent: -{spent_total:.2f} {BASE_CURRENCY}\n"
-        f"Overspend vs plan: -{overspend:.2f} {BASE_CURRENCY}\n"
+        f"Unplanned spend: -{unplanned_spent:.2f} {BASE_CURRENCY}\n"
+        f"Overspend vs plan: -{overspend_total:.2f} {BASE_CURRENCY}\n"
         f"Remaining: {remaining_overall:.2f} {BASE_CURRENCY}"
     )
 
