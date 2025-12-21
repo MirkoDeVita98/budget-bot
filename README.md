@@ -46,7 +46,7 @@ Rules are always stored internally in **BASE_CURRENCY** to ensure consistent rep
 ### Expenses
 - Add expenses at any time via Telegram commands
 - Support for **foreign currencies** (EUR, USD, etc.)
-- Automatic FX conversion to CHF at entry time
+- Automatic FX conversion to **BASE_CURRENCY** at entry time
 - Store both original amount and converted CHF amount
 - Undo the last expense of the current month
 - Reset all expenses for the current month
@@ -58,7 +58,7 @@ Rules are always stored internally in **BASE_CURRENCY** to ensure consistent rep
   - Original currency
   - Original amount
   - FX rate
-  - Converted CHF amount
+  - Converted **BASE_CURRENCY** amount
 
 ---
 
@@ -152,9 +152,18 @@ DB_PATH=budget.db
 ```bash
 python main.py
 ```
-On Telegram:
+Once the bot is running:
+- Open Telegram
+- Search for your bot by its username
+- Open the chat
+- Send the command:
 ```bash
 /start
+```
+The `/start` command initializes the bot and displays the full list of available commands.
+You can also use:
+```bash
+/help
 ```
 
 ## Usage Guide
@@ -187,7 +196,7 @@ On Telegram:
 /delrule <id>
 ```
 ### Add Expenses
-- CHF expense
+- **BASE_CURRENCY** expense
 ```bash
 /add Food Groceries 62.40
 ```
