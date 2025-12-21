@@ -17,6 +17,7 @@ Key highlights:
 - 🗂️ Category-based expenses (Food, Transport, Subscriptions, etc.)
 - ⏱️ Daily, Monthly, and Yearly budget rules
 - 💱 Multi-currency expenses with automatic conversion to your **BASE_CURRENCY**
+- 🧾 List expenses with IDs (with optional month + limit) and delete specific ones  
 - 🔁 Undo last expense, monthly reset, full reset
 - 🧱 Local SQLite storage (no cloud, no third parties)
 
