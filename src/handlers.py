@@ -1,8 +1,7 @@
 import io
-
+from functools import wraps
 from telegram import InputFile, Update
 from telegram.ext import ContextTypes
-from telegram.constants import ParseMode
 
 from alerts import check_alerts_after_add
 from config import BASE_CURRENCY, DB_PATH
@@ -18,6 +17,8 @@ from services import (
     delete_expense_by_id,
     delete_last_expense,
     delete_rule,
+    ensure_rollover_snapshot,
+    get_month_budget,
     ensure_month_budget,
     list_expenses_filtered,
     list_rules,
@@ -26,8 +27,13 @@ from services import (
     parse_amount,
     reset_all_user_data,
     reset_month_expenses,
+    delete_budget_for_month,
     upsert_budget,
 )
+
+
+def get_args(update: Update):
+    return parse_quoted_args(update.message.text if update.message else "")
 
 
 async def reply(
@@ -68,7 +74,7 @@ async def reply_doc(
     chat = update.effective_chat
 
     # Ensure Telegram sees a filename (helps clients + downloads)
-    if filename and hasattr(fileobj, "name") is False:
+    if filename and not hasattr(fileobj, "name"):
         try:
             fileobj.name = filename
         except Exception:
@@ -83,6 +89,44 @@ async def reply_doc(
     return None
 
 
+def _rollover_common(fn, *, notify: bool):
+    @wraps(fn)
+    async def wrapper(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
+    ):
+        if update is None:
+            return
+
+        user = update.effective_user
+        if user is not None:
+            user_id = user.id
+            current_month = month_key()
+
+            created, snap_month = ensure_rollover_snapshot(user_id, current_month)
+            if notify and created and snap_month:
+                await reply(
+                    update,
+                    context,
+                    f"📌 Snapshot created for *{snap_month}* (rules locked for history).",
+                    parse_mode="Markdown",
+                )
+
+        return await fn(update, context, *args, **kwargs)
+
+    return wrapper
+
+
+def rollover_silent(fn):
+    """Use for read-only commands: snapshots happen but no message is shown."""
+    return _rollover_common(fn, notify=False)
+
+
+def rollover_notify(fn):
+    """Use for write commands: snapshots happen and a message is shown once."""
+    return _rollover_common(fn, notify=True)
+
+
+@rollover_silent
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(
         update,
@@ -109,7 +153,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/export [expenses|rules|budgets] [YYYY-MM]\n"
         "/backupdb\n\n"
         "Maintenance:\n"
-        "/resetmonth\n"
+        "/resetmonth [YYYY-MM]\n"
         "/resetall yes\n\n"
         "Help:\n"
         "/help (shortcut: /h)\n\n"
@@ -121,13 +165,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@rollover_silent
 async def help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return await start(update, context)
 
 
+@rollover_notify
 async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if not args:
         return await reply(update, context, "Usage: /setbudget <amount>")
@@ -144,9 +190,10 @@ async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, f"✅ Set budget for {m}: {amount:.2f} {BASE_CURRENCY}")
 
 
+@rollover_notify
 async def setdaily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if len(args) < 2:
         return await reply(
@@ -174,9 +221,10 @@ async def setdaily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@rollover_notify
 async def setyearly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if len(args) < 2:
         return await reply(
@@ -206,9 +254,10 @@ async def setyearly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@rollover_notify
 async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if len(args) < 2:
         return await reply(
@@ -280,6 +329,7 @@ async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+@rollover_silent
 async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     rows = list_rules(user_id)
@@ -295,9 +345,10 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "\n".join(lines))
 
 
+@rollover_notify
 async def delrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if not args:
         return await reply(update, context, "Usage: /delrule <id>")
@@ -311,6 +362,7 @@ async def delrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "🗑️ Rule deleted." if ok else "⚠️ Rule not found.")
 
 
+@rollover_notify
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /add <category> <name> <amount> [currency]
@@ -419,6 +471,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await reply(update, context, msg, parse_mode="Markdown")
 
 
+@rollover_notify
 async def undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     m = month_key()
@@ -444,6 +497,7 @@ async def undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+@rollover_silent
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     m = month_key()
@@ -601,6 +655,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "\n".join(lines), parse_mode="Markdown")
 
 
+@rollover_silent
 async def categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /categories [YYYY-MM]
@@ -647,6 +702,7 @@ async def categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "\n".join(lines))
 
 
+@rollover_silent
 async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     args = parse_quoted_args(update.message.text if update.message else "")
@@ -662,7 +718,8 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update, context, "Usage: /month YYYY-MM (example: /month 2025-12)"
         )
 
-    overall_budget, carried, carried_from = ensure_month_budget(user_id, m)
+    overall_budget = get_month_budget(user_id, m)
+
     if overall_budget is None:
         return await reply(
             update, context, f"📅 {m}\nNo overall budget set for this month."
@@ -700,11 +757,6 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     show_cats = cats_sorted[:TOP_N]
 
     lines = [f"📅 {m} — Summary"]
-
-    if carried:
-        lines.append(
-            f"ℹ️ Budget auto-carried from {carried_from}: {overall_budget:.2f} {BASE_CURRENCY}"
-        )
 
     lines += [
         "",
@@ -749,16 +801,44 @@ async def month(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "\n".join(lines), parse_mode="Markdown")
 
 
+@rollover_notify
 async def resetmonth(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /resetmonth [YYYY-MM]
+    Deletes all expenses AND the overall budget for the given month.
+    Examples:
+      /resetmonth
+      /resetmonth 2025-11
+    """
     user_id = update.effective_user.id
+    args = parse_quoted_args(update.message.text if update.message else "")
+
     m = month_key()
-    n = reset_month_expenses(user_id, m)
-    await reply(update, context, f"🧹 Deleted {n} expenses for {m}.")
+    if args:
+        m = args[0].strip()
+
+    if len(m) != 7 or m[4] != "-":
+        return await reply(
+            update,
+            context,
+            "Usage: /resetmonth [YYYY-MM]\nExample: /resetmonth 2025-11",
+        )
+
+    n_exp = reset_month_expenses(user_id, m)
+    n_budget = delete_budget_for_month(user_id, m)
+
+    lines = [
+        f"🧹 Reset month {m}:",
+        f"- Deleted expenses: {n_exp}",
+        f"- Deleted budget: {'yes' if n_budget else 'no (not set)'}",
+    ]
+    await reply(update, context, "\n".join(lines))
 
 
+@rollover_notify
 async def resetall(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if not args or args[0].lower() != "yes":
         return await reply(
@@ -781,6 +861,7 @@ def _is_int_token(t: str) -> bool:
         return False
 
 
+@rollover_silent
 async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /expenses [YYYY-MM] [limit] ["Category Name"]
@@ -875,12 +956,13 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply(update, context, "\n".join(lines))
 
 
+@rollover_notify
 async def delexpense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /delexpense <id>
     """
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     if not args:
         return await reply(
@@ -902,6 +984,7 @@ async def delexpense(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+@rollover_silent
 async def export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /export [expenses|rules|budgets] [YYYY-MM]
@@ -912,7 +995,7 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE):
       /export expenses 2025-12
     """
     user_id = update.effective_user.id
-    args = parse_quoted_args(update.message.text)
+    args = get_args(update)
 
     kind = "expenses"
     m = month_key()
@@ -955,6 +1038,7 @@ async def export(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await reply_doc(update, context, InputFile(bio), caption=f"📄 {filename}")
 
 
+@rollover_silent
 async def backupdb(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /backupdb

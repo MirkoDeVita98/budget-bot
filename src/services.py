@@ -29,6 +29,16 @@ def looks_like_currency(s: str) -> bool:
 
 
 # ---- Budgets ----
+def get_month_budget(user_id: int, month: str):
+    conn = db()
+    row = conn.execute(
+        "SELECT amount FROM budgets WHERE user_id=? AND month=?",
+        (user_id, month),
+    ).fetchone()
+    conn.close()
+    return float(row["amount"]) if row else None
+
+
 def ensure_month_budget(
     user_id: int, month: str
 ) -> Tuple[Optional[float], bool, Optional[str]]:
@@ -121,17 +131,15 @@ def compute_planned_monthly_from_rules(
     user_id: int, month: str
 ) -> Tuple[Dict[str, float], float]:
     d = days_in_month(month)
-    conn = db()
-    rows = conn.execute(
-        "SELECT category, period, amount FROM rules WHERE user_id=?", (user_id,)
-    ).fetchall()
-    conn.close()
+
+    # Use snapshot if it exists for that month, otherwise fallback to current rules
+    rows, used_snapshot = get_rules_for_month(user_id, month)
 
     planned_by_cat: Dict[str, float] = {}
     for r in rows:
         cat = r["category"]
         period = r["period"]
-        amt = float(r["amount"])  # CHF stored
+        amt = float(r["amount"])  # stored in BASE_CURRENCY
 
         if period == "daily":
             monthly = amt * d
@@ -289,6 +297,17 @@ def reset_month_expenses(user_id: int, month: str) -> int:
     return cur.rowcount
 
 
+def delete_budget_for_month(user_id: int, month: str) -> int:
+    conn = db()
+    cur = conn.execute(
+        "DELETE FROM budgets WHERE user_id=? AND month=?",
+        (user_id, month),
+    )
+    conn.commit()
+    conn.close()
+    return cur.rowcount
+
+
 def reset_all_user_data(user_id: int) -> None:
     conn = db()
     conn.execute("DELETE FROM budgets WHERE user_id=?", (user_id,))
@@ -340,3 +359,115 @@ async def add_expense_optional_fx(
         str(fx_date),
     )
     return fx_date, rate, chf
+
+
+# --- Snapshots for rules ---
+def get_last_seen_month(user_id: int) -> str | None:
+    conn = db()
+    row = conn.execute(
+        "SELECT last_seen_month FROM user_state WHERE user_id=?",
+        (user_id,),
+    ).fetchone()
+    conn.close()
+    return row["last_seen_month"] if row else None
+
+
+def set_last_seen_month(user_id: int, month: str) -> None:
+    conn = db()
+    conn.execute(
+        """
+        INSERT INTO user_state(user_id, last_seen_month)
+        VALUES(?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET last_seen_month=excluded.last_seen_month
+        """,
+        (user_id, month),
+    )
+    conn.commit()
+    conn.close()
+
+
+def snapshot_rules_for_month_if_missing(user_id: int, month: str) -> bool:
+    """
+    Creates rule snapshots for `month` if they don't exist.
+    Returns True if snapshot was created, False if already existed (or no rules).
+    """
+    conn = db()
+
+    exists = conn.execute(
+        "SELECT 1 FROM rule_snapshots WHERE user_id=? AND month=? LIMIT 1",
+        (user_id, month),
+    ).fetchone()
+    if exists:
+        conn.close()
+        return False
+
+    rules = conn.execute(
+        "SELECT category, name, period, amount FROM rules WHERE user_id=?",
+        (user_id,),
+    ).fetchall()
+
+    if not rules:
+        conn.close()
+        return False
+
+    conn.executemany(
+        """
+        INSERT OR IGNORE INTO rule_snapshots(user_id, month, category, name, period, amount)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (user_id, month, r["category"], r["name"], r["period"], float(r["amount"]))
+            for r in rules
+        ],
+    )
+    conn.commit()
+    conn.close()
+    return True
+
+
+def ensure_rollover_snapshot(
+    user_id: int, current_month: str
+) -> tuple[bool, str | None]:
+    """
+    Call this at the start of EVERY command.
+    If user crossed into a new month since last time, snapshot the previous month rules.
+    Returns: (snapshot_created, snapshotted_month)
+    """
+    last = get_last_seen_month(user_id)
+
+    # First ever interaction: just store current month
+    if last is None:
+        set_last_seen_month(user_id, current_month)
+        return False, None
+
+    if last == current_month:
+        return False, None
+
+    # Month changed: snapshot the last seen month (the month we just left)
+    created = snapshot_rules_for_month_if_missing(user_id, last)
+    set_last_seen_month(user_id, current_month)
+    return created, last
+
+
+def get_rules_for_month(user_id: int, month: str):
+    """
+    Returns (rows, used_snapshot: bool)
+    rows are dict-like rows with: category, name, period, amount
+    """
+    conn = db()
+    snap = conn.execute(
+        "SELECT category, name, period, amount FROM rule_snapshots WHERE user_id=? AND month=?",
+        (user_id, month),
+    ).fetchall()
+
+    if snap:
+        conn.close()
+        return snap, True
+
+    # fallback to current rules if no snapshot exists
+    rules = conn.execute(
+        "SELECT category, name, period, amount FROM rules WHERE user_id=?",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return rules, False

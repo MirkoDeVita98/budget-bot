@@ -68,6 +68,41 @@ def init_db():
     """
     )
 
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_state (
+            user_id INTEGER PRIMARY KEY,
+            last_seen_month TEXT
+        )
+    """
+    )
+
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS rule_snapshots (
+            user_id INTEGER NOT NULL,
+            month TEXT NOT NULL,
+            category TEXT NOT NULL,
+            name TEXT NOT NULL,
+            period TEXT NOT NULL CHECK(period IN ('daily','monthly','yearly')),
+            amount REAL NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            PRIMARY KEY (user_id, month, category, name, period)
+        )
+    """
+    )
+
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_expenses_user_month ON expenses(user_id, month)"
+    )
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_expenses_user_month_cat ON expenses(user_id, month, category)"
+    )
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_rules_user ON rules(user_id)")
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_rule_snapshots_user_month ON rule_snapshots(user_id, month)"
+    )
+
     # multi-currency expense columns
     ensure_column(conn, "expenses", "currency", "TEXT")
     ensure_column(conn, "expenses", "original_amount", "REAL")
