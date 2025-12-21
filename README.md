@@ -38,7 +38,7 @@ Budget rules define your *planned* spending and are automatically aggregated per
 - **Named rules**  
   Useful for individual subscriptions (e.g. Netflix, PSN, Spotify)
 
-Rules are always stored internally in **CHF** to ensure consistent reporting.
+Rules are always stored internally in **BASE_CURRENCY** to ensure consistent reporting. You can set it in the `.env`, e.g **BASE_CURRENCY=CHF**.
 
 ### Expenses
 - Add expenses at any time via Telegram commands
@@ -211,7 +211,7 @@ On Telegram:
 `budget.db`
 - The schema is created automatically at startup.
 ## Security Notes
-- Never commit .env
+- Never commit `.env`
 - Never share your Telegram bot token
 - If exposed:
 ```bash
