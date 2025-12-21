@@ -274,6 +274,7 @@ The bot can automatically notify you when:
 - ⚠️ You exceed a **category planned budget** (e.g. Food goes below 0)
 - 🚨 You exceed the **overall monthly budget**
 - 🔔 You are running low on remaining budget (default: < 10%)
+- ℹ️ A new unplanned category is detected
 
 Alerts are triggered immediately after you add an expense:
 
@@ -292,7 +293,10 @@ Example alert (overall exceeded):
 🚨 Overall budget exceeded!
 Remaining overall is now: -25.40 CHF
 ```
-
+Example alert (unplanned category):
+```text
+ℹ️ New unplanned category detected: Gaming (no rule set). It will count as unplanned spend until you add a rule.
+```
 ## Export / Backup (CSV + SQLite)
 
 ### Export to CSV
