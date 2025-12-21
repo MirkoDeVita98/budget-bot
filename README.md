@@ -192,6 +192,24 @@ On Telegram:
 ```bash
 /add Travel Taxi 20 EUR
 ```
+### List and Delete Expenses
+- List expenses for the current month (default limit = 50):
+```bash
+/expenses
+```
+- List expenses for a specific month:
+```bash
+/expenses 2025-12
+```
+- List expenses with a custom limit:
+```bash
+/expenses 2025-12 100
+```
+The limit parameter controls how many of the most recent expenses are shown, to avoid very long Telegram messages.
+- Delete a specific expense by ID:
+```bash
+/delexpense <id>
+```
 ### Reports
 ```bash
 /status
@@ -199,13 +217,19 @@ On Telegram:
 /month 2025-02
 ```
 ### Undo & Reset
+- Undo last expense:
 ```bash
 /undo
+```
+- Reset current month expenses:
+```bash
 /resetmonth
+```
+- Reset everything:
+```bash
 /resetall yes
 ```
 ⚠️ `/resetall yes` permanently deletes all stored data.
-
 ## Data Storage
 - Uses a local SQLite database.
 `budget.db`
@@ -219,4 +243,30 @@ On Telegram:
 /mybots
 Revoke token
 ```
+## TODO / Future Improvements
+The following features are planned or under consideration:
+- 📄 Automatic expense extraction using a self-hosted LLM
+  - Parse bank statements (PDFs)
+  - Extract merchant, amount, date, and currency
+  - Automatically classify transactions into categories
+- 🧠 LLM-powered categorization
+  - Use a locally hosted small language model
+  - Zero cloud dependency
+  - Privacy-preserving processing
+- 📊 Advanced analytics
+  - Category trends over time
+  - Monthly comparisons
+  - Forecasting based on past spending
+- 🔄 Improved automation
+  - Smarter rules
+  - Optional confirmations for imported expenses
+  - Confidence scores for LLM-parsed transactions
+## License
+This project is licensed under the MIT License.
+You are free to:
+- Use
+- Modify
+- Distribute
+- Self-host
 
+See the LICENSE file for full details.
