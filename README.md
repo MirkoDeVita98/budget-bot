@@ -1,3 +1,6 @@
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+
 # 💸 Telegram Budget Bot
 
 A personal Telegram bot to track expenses and budgets directly from Telegram.  
@@ -12,7 +15,7 @@ Key highlights:
 - 🔁 Undo last expense, monthly reset, full reset
 - 🧱 Local SQLite storage (no cloud, no third parties)
 
-All amounts are **computed and reported in CHF**, even when entered in foreign currencies.
+All amounts are **computed and reported in your BASE_CURRENCY**, even when entered in foreign currencies.
 
 ---
 
