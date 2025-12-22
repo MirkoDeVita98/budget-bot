@@ -1,0 +1,14 @@
+# Alert messages for budget notifications
+category_exceeded: |
+  ⚠️ Category exceeded: *{category}*
+  Planned: {planned:.2f} {currency}
+  Spent: {spent:.2f} {currency}
+  Over: {overspend:.2f} {currency}
+
+overall_budget_exceeded: |
+  🚨 Overall budget exceeded!
+  Remaining overall is now: {remaining:.2f} {currency}
+
+low_budget_warning: |
+  🔔 Low budget warning
+  Remaining overall: {remaining:.2f} {currency} (< 10% of budget)

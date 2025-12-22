@@ -137,15 +137,15 @@ budget-bot/
         ├── __init__.py
         ├── base.py       # base handler class & utilities
         ├── setup.py      # /start and /help commands
-        ├── budget.py     # /setbudget, /status, /month commands
-        ├── rules.py      # budget rules management (/setdaily, /setmonthly, etc.)
+        ├── report.py     # /status (with month), /categories commands
+        ├── rules.py      # budget rules management (/setbudget, /setdaily, /setmonthly, /setyearly, etc.)
         ├── expenses.py   # expense management (/add, /undo, /expenses, etc.)
         ├── export.py     # /export and /backupdb commands
         ├── reset.py      # /resetmonth and /resetall commands
         └── messages/     # YAML message templates
             ├── base.yaml
             ├── setup.yaml
-            ├── budget.yaml
+            ├── report.yaml
             ├── rules.yaml
             ├── expenses.yaml
             ├── export.yaml
@@ -256,9 +256,8 @@ Most commands have shorthand aliases to make them easier to use:
 | `/undo` | `/u` | Undo last expense |
 | `/expenses` | `/e` | List expenses |
 | `/delexpense` | `/d` | Delete an expense |
-| `/status` | `/s` | Show budget status |
+| `/status` | `/s` | Show budget status (current month or `/status YYYY-MM` for past months) |
 | `/categories` | `/c` | List all categories |
-| `/month` | `/m` | Show expenses for a specific month |
 | `/resetmonth` | `/rm` | Reset current month expenses |
 
 ### Set Monthly Budget
@@ -286,17 +285,17 @@ This means you plan to spend 15 CHF on Food per day. The bot automatically scale
 
 - **Monthly rule**
 ```bash
-/setmonthly Rent 700
+/setmonthly Subscriptions 35
 ```
 
 - **Yearly rule** (automatically divided by 12)
 ```bash
-/setyearly CarInsurance 600 Transport
+/setyearly "Transport & Car" "Car Insurance" 600
 ```
 
 - **Named rule** (useful for subscriptions)
 ```bash
-/setmonthly PSN 16.99 EUR Subscription
+/setmonthly "Subscriptions & Gaming" "PSN Plus Extra" 16.99 EUR
 ```
 You can specify currency for any rule; it will be converted to BASE_CURRENCY.
 
@@ -313,14 +312,16 @@ You can specify currency for any rule; it will be converted to BASE_CURRENCY.
 
 Add a new expense (amount is required, currency defaults to BASE_CURRENCY):
 
-- **In your base currency**
+- **Without category** (uses "Uncategorized")
 ```bash
-/add Food Groceries 62.40
+/add Groceries 62.40
+/add "Taxi to airport" 20 EUR
 ```
 
-- **In a foreign currency** (automatically converted)
+- **With category** (explicit categorization)
 ```bash
-/add Travel Taxi 20 EUR
+/add Food Groceries 62.40
+/add Travel "Taxi to airport" 20 EUR
 ```
 
 - **Multi-word names or categories** (use quotes)
@@ -329,7 +330,7 @@ Add a new expense (amount is required, currency defaults to BASE_CURRENCY):
 /add "Entertainment & Gaming" "PS Store subscription" 16.99 EUR
 ```
 
-**Pro tip:** Use `/a` as shorthand (e.g., `/a Food Coffee 5`)
+**Pro tip:** Use `/a` as shorthand (e.g., `/a Food Coffee 5` or `/a Coffee 5`)
 
 ### List and Delete Expenses
 
@@ -385,7 +386,12 @@ Shows planned budget, actual spending, and remaining amount for that category.
 
 - **Past month summary**
 ```bash
-/month 2025-02
+/status 2025-02
+```
+
+- **Past month category status**
+```bash
+/status 2025-02 Food
 ```
 
 - **All categories you've used**

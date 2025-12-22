@@ -36,8 +36,14 @@ def _is_int_token(t: str) -> bool:
 @rollover_notify
 async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
+    /add <name> <amount> [currency]
     /add <category> <name> <amount> [currency]
-    Examples:
+    
+    Examples (no category - uses "Uncategorized"):
+      /add Groceries 62.40
+      /add "Taxi to airport" 20 EUR
+      
+    Examples (with category):
       /add Food Groceries 62.40
       /add "Food & Drinks" "Taxi to airport" 20 EUR
     """
@@ -45,31 +51,81 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text if update.message else ""
     args = parse_quoted_args(text)
 
-    if len(args) < 3:
+    if len(args) < 2:
         return await reply(update, context, MESSAGES["usage_add"])
 
-    category = args[0].strip()
     m = month_key()
-
-    # Parse amount/name/currency
-    try:
-        amount = parse_amount(args[-1])
-        currency = BASE_CURRENCY
-        name = " ".join(args[1:-1]).strip() or "(no name)"
-    except Exception:
-        if len(args) < 4:
-            return await reply(update, context, MESSAGES["usage_add"])
-
-        currency = args[-1].strip().upper()
-        if not looks_like_currency(currency):
-            return await reply(update, context, MESSAGES["currency_error"])
-
+    
+    # Try to parse as: name amount [currency]
+    # If it looks like (name, amount), assume no category
+    # Otherwise try (category, name, amount [currency])
+    
+    category = None
+    name = None
+    amount = None
+    currency = BASE_CURRENCY
+    
+    # Check if we have 2 args: likely "name amount" with no category
+    if len(args) == 2:
         try:
-            amount = parse_amount(args[-2])
+            amount = parse_amount(args[1])
+            name = args[0].strip()
+            category = "Uncategorized"
         except Exception:
-            return await reply(update, context, MESSAGES["amount_parse_error"])
+            # Not a valid amount, might be something else
+            pass
+    
+    # Check if we have 3 args: could be "name amount currency" OR "category name amount"
+    if category is None and len(args) == 3:
+        # Try to parse as: name amount currency
+        try:
+            amount = parse_amount(args[1])
+            currency_candidate = args[2].strip().upper()
+            if looks_like_currency(currency_candidate):
+                name = args[0].strip()
+                category = "Uncategorized"
+                currency = currency_candidate
+        except Exception:
+            pass
+        
+        # If that didn't work, try: category name amount
+        if category is None:
+            try:
+                amount = parse_amount(args[2])
+                category = args[0].strip()
+                name = args[1].strip()
+                currency = BASE_CURRENCY
+            except Exception:
+                pass
+    
+    # Check if we have 4+ args: category name amount [currency]
+    if category is None and len(args) >= 4:
+        try:
+            amount = parse_amount(args[-1])
+            currency = BASE_CURRENCY
+            category = args[0].strip()
+            name = " ".join(args[1:-1]).strip()
+        except Exception:
+            if len(args) < 4:
+                return await reply(update, context, MESSAGES["usage_add"])
 
-        name = " ".join(args[1:-2]).strip() or "(no name)"
+            currency = args[-1].strip().upper()
+            if not looks_like_currency(currency):
+                return await reply(update, context, MESSAGES["currency_error"])
+
+            try:
+                amount = parse_amount(args[-2])
+            except Exception:
+                return await reply(update, context, MESSAGES["amount_parse_error"])
+
+            category = args[0].strip()
+            name = " ".join(args[1:-2]).strip()
+    
+    # Final validation
+    if category is None or name is None or amount is None:
+        return await reply(update, context, MESSAGES["usage_add"])
+    
+    name = name or "(no name)"
 
     # BEFORE insert: baseline for alert crossings
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)

@@ -17,9 +17,8 @@ start_message: |
   /undo `/u` — _Undo last expense_
 
   *Reports:*
-  /status `/s` — _Budget summary & spending_
+  /status `/s` — _Budget summary & spending (use `/s YYYY-MM` for past months)_
   /categories `/c` — _List all categories_
-  /month `/m` — _Full month report_
 
   *Export & Backup:*
   /export — _Export expenses, rules, or budgets_
@@ -34,7 +33,7 @@ start_message: |
 
   *Quick Examples:*
   /a "Food & Drinks" "Taxi to airport" 20 EUR
-  /sm "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+  /sm "Subscriptions & Gaming" "PSN Plus Extra" 16.99 EUR
   /s "Food & Drinks"
   /e "Food & Drinks"
 

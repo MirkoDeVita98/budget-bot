@@ -1,7 +1,15 @@
 from dataclasses import dataclass
 from typing import Dict, Tuple
+from pathlib import Path
+import yaml
 
 from config import BASE_CURRENCY
+
+# Load messages from YAML file
+_current_dir = Path(__file__).parent
+_messages_path = _current_dir / "handlers" / "messages" / "alerts.yaml"
+with open(_messages_path, "r") as file:
+    MESSAGES = yaml.safe_load(file)
 
 
 @dataclass
@@ -75,10 +83,13 @@ def check_alerts_after_add(
     # Only alert category exceeded if the category is planned (p > 0)
     if p > 0 and prev_remaining_cat >= 0 and new_remaining_cat < 0:
         msgs.append(
-            f"⚠️ Category exceeded: *{category}*\n"
-            f"Planned: {p:.2f} {BASE_CURRENCY}\n"
-            f"Spent: {s_new:.2f} {BASE_CURRENCY}\n"
-            f"Over: {abs(new_remaining_cat):.2f} {BASE_CURRENCY}"
+            MESSAGES["category_exceeded"].format(
+                category=category,
+                planned=p,
+                spent=s_new,
+                overspend=abs(new_remaining_cat),
+                currency=BASE_CURRENCY,
+            )
         )
 
     # OVERALL alerts (only if a budget exists)
@@ -92,8 +103,10 @@ def check_alerts_after_add(
 
         if prev_overall >= 0 and new_overall < 0:
             msgs.append(
-                f"🚨 Overall budget exceeded!\n"
-                f"Remaining overall is now: {new_overall:.2f} {BASE_CURRENCY}"
+                MESSAGES["overall_budget_exceeded"].format(
+                    remaining=new_overall,
+                    currency=BASE_CURRENCY,
+                )
             )
 
         # Optional warning at 10% remaining
@@ -105,8 +118,10 @@ def check_alerts_after_add(
                 and new_overall >= 0
             ):
                 msgs.append(
-                    f"🔔 Low budget warning\n"
-                    f"Remaining overall: {new_overall:.2f} {BASE_CURRENCY} (< 10% of budget)"
+                    MESSAGES["low_budget_warning"].format(
+                        remaining=new_overall,
+                        currency=BASE_CURRENCY,
+                    )
                 )
 
     return AlertResult(messages=msgs)

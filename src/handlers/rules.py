@@ -6,6 +6,8 @@ from services import (
     parse_amount,
     looks_like_currency,
     add_rule_named_fx,
+    upsert_budget,
+    month_key,
 )
 
 
@@ -14,6 +16,30 @@ _current_dir = Path(__file__).parent
 _messages_path = _current_dir / "messages" / "rules.yaml"
 with open(_messages_path, "r") as file:
     MESSAGES = yaml.safe_load(file)
+
+
+@rollover_notify
+async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    args = get_args(update)
+
+    if not args:
+        return await reply(update, context, MESSAGES["usage_setbudget"])
+
+    try:
+        amount = parse_amount(args[0])
+    except ValueError:
+        return await reply(update, context, MESSAGES["parse_amount_error"])
+
+    m = month_key()
+    upsert_budget(user_id, m, amount)
+    return await reply(
+        update,
+        context,
+        MESSAGES["set_budget_success"].format(
+            month=m, amount=amount, currency=BASE_CURRENCY
+        ),
+    )
 
 
 async def _handle_rule_setter(
@@ -31,8 +57,8 @@ async def _handle_rule_setter(
     Generic handler for setdaily/setmonthly/setyearly.
 
     Supports two modes:
-    1. Legacy: /cmd <category> <amount>  (daily/yearly only)
-    2. Named: /cmd <name> <amount> [currency] <category>
+    1. Legacy: /cmd <category> <amount>
+    2. Named: /cmd <category> <name> <amount> [currency]
     """
     if len(args) < 2:
         return await reply(update, context, MESSAGES[usage_key])
@@ -57,21 +83,25 @@ async def _handle_rule_setter(
             ),
         )
 
-    # Named mode: last arg is category, optional currency before it
-    category = args[-1].strip()
+    # Named mode: first arg is category, rest is name amount [currency]
+    category = args[0].strip()
     currency = BASE_CURRENCY
-    amount_index = -2
-
-    if len(args) >= 4 and looks_like_currency(args[-2]):
-        currency = args[-2].strip().upper()
-        amount_index = -3
+    
+    # Check if second-to-last arg is currency
+    if len(args) >= 4 and looks_like_currency(args[-1]):
+        currency = args[-1].strip().upper()
+        amount_index = -2
+        name_end_index = -2
+    else:
+        amount_index = -1
+        name_end_index = -1
 
     try:
         amount = parse_amount(args[amount_index])
     except Exception:
         return await reply(update, context, MESSAGES[error_key])
 
-    rule_name = " ".join(args[:amount_index]).strip() or "(no name)"
+    rule_name = " ".join(args[1:name_end_index]).strip() or "(no name)"
 
     fx_date, rate, chf_amount = await add_rule_named_fx(
         user_id, rule_name, amount, currency, category, period

@@ -30,7 +30,6 @@ def export_expenses_csv(user_id: int, month: str) -> bytes:
         """,
         (BASE_CURRENCY, user_id, month),
     ).fetchall()
-    conn.close()
 
     out = []
     for r in rows:
@@ -75,7 +74,6 @@ def export_rules_csv(user_id: int) -> bytes:
         """,
         (user_id,),
     ).fetchall()
-    conn.close()
 
     out = []
     for r in rows:
@@ -105,7 +103,6 @@ def export_budgets_csv(user_id: int) -> bytes:
         """,
         (user_id,),
     ).fetchall()
-    conn.close()
 
     out = []
     for r in rows:

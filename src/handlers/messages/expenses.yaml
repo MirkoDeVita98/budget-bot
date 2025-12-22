@@ -1,7 +1,13 @@
 # Messages for expenses.py
 usage_add: |
-  Usage: /add <category> <name> <amount> [currency] (/a)
-  Example: /add Travel Taxi 20 EUR
+  Usage: /add <name> <amount> [currency] (/a)
+     or: /add <category> <name> <amount> [currency]
+  Examples (no category → "Uncategorized"):
+    /add Groceries 62.40
+    /add "Taxi to airport" 20 EUR
+  Examples (with category):
+    /add Food Groceries 62.40
+    /add "Food & Drinks" "Taxi to airport" 20 EUR
 currency_error: "Currency must be a 3-letter code (EUR, USD, ...)."
 amount_parse_error: "Couldn't parse amount. Example: /add Travel Taxi 20 EUR"
 add_success_base: "✅ Added: [{category}] {name} = {amount:.2f} {currency}"

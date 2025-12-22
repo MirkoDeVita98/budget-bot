@@ -33,7 +33,6 @@ def get_month_budget(user_id: int, month: str):
         "SELECT amount FROM budgets WHERE user_id=? AND month=?",
         (user_id, month),
     ).fetchone()
-    conn.close()
     return float(row["amount"]) if row else None
 
 
@@ -56,7 +55,6 @@ def ensure_month_budget(
         (user_id, month),
     ).fetchone()
     if row:
-        conn.close()
         return float(row["amount"]), False, None
 
     # 2) Find most recent prior budget
@@ -66,7 +64,6 @@ def ensure_month_budget(
     ).fetchone()
 
     if not row:
-        conn.close()
         return None, False, None
 
     prev_month = str(row["month"])
@@ -78,7 +75,6 @@ def ensure_month_budget(
         (user_id, month, amount),
     )
     conn.commit()
-    conn.close()
 
     return amount, True, prev_month
 
@@ -91,7 +87,6 @@ def upsert_budget(user_id: int, month: str, amount: float) -> None:
         (user_id, month, amount),
     )
     conn.commit()
-    conn.close()
 
 
 # ---- Rules ----
@@ -104,7 +99,6 @@ def add_rule(
         (user_id, category, name, period, amount_chf),
     )
     conn.commit()
-    conn.close()
 
 
 def list_rules(user_id: int):
@@ -113,7 +107,6 @@ def list_rules(user_id: int):
         "SELECT id, category, name, period, amount FROM rules WHERE user_id=? ORDER BY category, period, name",
         (user_id,),
     ).fetchall()
-    conn.close()
     return rows
 
 
@@ -121,7 +114,6 @@ def delete_rule(user_id: int, rule_id: int) -> bool:
     conn = db()
     cur = conn.execute("DELETE FROM rules WHERE user_id=? AND id=?", (user_id, rule_id))
     conn.commit()
-    conn.close()
     return cur.rowcount > 0
 
 
@@ -188,7 +180,6 @@ def insert_expense(
         ),
     )
     conn.commit()
-    conn.close()
 
 
 def compute_spent_this_month(
@@ -204,7 +195,6 @@ def compute_spent_this_month(
         """,
         (user_id, month),
     ).fetchall()
-    conn.close()
 
     spent_by_cat = {r["category"]: float(r["s"] or 0.0) for r in rows}
     return spent_by_cat, sum(spent_by_cat.values())
@@ -243,8 +233,6 @@ def list_expenses_filtered(
             """,
             (BASE_CURRENCY, user_id, month, int(limit)),
         ).fetchall()
-
-    conn.close()
     return rows
 
 
@@ -255,7 +243,6 @@ def delete_expense_by_id(user_id: int, expense_id: int) -> bool:
         (user_id, int(expense_id)),
     )
     conn.commit()
-    conn.close()
     return cur.rowcount > 0
 
 
@@ -276,12 +263,10 @@ def delete_last_expense(user_id: int, month: str):
     ).fetchone()
 
     if not row:
-        conn.close()
         return None
 
     conn.execute("DELETE FROM expenses WHERE id=?", (row["id"],))
     conn.commit()
-    conn.close()
     return row
 
 
@@ -291,7 +276,6 @@ def reset_month_expenses(user_id: int, month: str) -> int:
         "DELETE FROM expenses WHERE user_id=? AND month=?", (user_id, month)
     )
     conn.commit()
-    conn.close()
     return cur.rowcount
 
 
@@ -302,7 +286,6 @@ def delete_budget_for_month(user_id: int, month: str) -> int:
         (user_id, month),
     )
     conn.commit()
-    conn.close()
     return cur.rowcount
 
 
@@ -312,7 +295,6 @@ def reset_all_user_data(user_id: int) -> None:
     conn.execute("DELETE FROM rules WHERE user_id=?", (user_id,))
     conn.execute("DELETE FROM expenses WHERE user_id=?", (user_id,))
     conn.commit()
-    conn.close()
 
 
 # ---- Rule creation with optional FX ----
@@ -372,7 +354,6 @@ def get_last_seen_month(user_id: int) -> str | None:
         "SELECT last_seen_month FROM user_state WHERE user_id=?",
         (user_id,),
     ).fetchone()
-    conn.close()
     return row["last_seen_month"] if row else None
 
 
@@ -387,7 +368,6 @@ def set_last_seen_month(user_id: int, month: str) -> None:
         (user_id, month),
     )
     conn.commit()
-    conn.close()
 
 
 def snapshot_rules_for_month_if_missing(user_id: int, month: str) -> bool:
@@ -402,7 +382,6 @@ def snapshot_rules_for_month_if_missing(user_id: int, month: str) -> bool:
         (user_id, month),
     ).fetchone()
     if exists:
-        conn.close()
         return False
 
     rules = conn.execute(
@@ -411,7 +390,6 @@ def snapshot_rules_for_month_if_missing(user_id: int, month: str) -> bool:
     ).fetchall()
 
     if not rules:
-        conn.close()
         return False
 
     conn.executemany(
@@ -425,7 +403,6 @@ def snapshot_rules_for_month_if_missing(user_id: int, month: str) -> bool:
         ],
     )
     conn.commit()
-    conn.close()
     return True
 
 
@@ -465,7 +442,6 @@ def get_rules_for_month(user_id: int, month: str):
     ).fetchall()
 
     if snap:
-        conn.close()
         return snap, True
 
     # fallback to current rules if no snapshot exists
@@ -473,5 +449,4 @@ def get_rules_for_month(user_id: int, month: str):
         "SELECT category, name, period, amount FROM rules WHERE user_id=?",
         (user_id,),
     ).fetchall()
-    conn.close()
     return rules, False

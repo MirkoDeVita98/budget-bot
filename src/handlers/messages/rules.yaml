@@ -1,14 +1,18 @@
 # Messages for rules.py
+usage_setbudget: "Usage: /setbudget <amount> (/sb)"
+parse_amount_error: "Couldn't parse amount. Example: /setbudget 2500"
+set_budget_success: "✅ Set budget for {month}: {amount:.2f} {currency}"
+
 usage_setdaily: |
   Usage:
   1) /setdaily <category> <amount> (/sd)
-  2) /setdaily <name> <amount> [currency] <category>
+  2) /setdaily <category> <name> <amount> [currency]
   Examples:
   /setdaily "Food & Drinks" 15
-  /setdaily "Lunch allowance" 25 EUR "Food & Drinks"
+  /setdaily "Food & Drinks" "Lunch allowance" 25 EUR
 parse_amount_error_setdaily: |
   Couldn't parse amount.
-  Example: /setdaily "Lunch allowance" 25 EUR "Food & Drinks"
+  Example: /setdaily "Food & Drinks" "Lunch allowance" 25 EUR
 setdaily_success_base: |
   ✅ Daily rule added: [{category}] {rule_name} = {amount:.2f} {currency}/day
 setdaily_success_fx: |
@@ -17,14 +21,14 @@ setdaily_success_fx: |
 
 usage_setyearly: |
   Usage:
-  1) /setyearly <name> <amount> [category] (/sy)
-  2) /setyearly <name> <amount> [currency] <category>
+  1) /setyearly <category> <amount> (/sy)
+  2) /setyearly <category> <name> <amount> [currency]
   Examples:
-  /setyearly "Car Insurance" 600
-  /setyearly "Car Insurance" 700 EUR "Transport & Car"
+  /setyearly "Transport & Car" 600
+  /setyearly "Transport & Car" "Car Insurance" 700 EUR
 parse_amount_error_setyearly: |
   Couldn't parse amount.
-  Example: /setyearly "Car Insurance" 700 EUR "Transport & Car"
+  Example: /setyearly "Transport & Car" "Car Insurance" 700 EUR
 setyearly_success_base: |
   ✅ Yearly rule added: {name} ({category}) = {amount:.2f} {currency}/year (→ {monthly:.2f}/month)
 setyearly_success_fx: |
@@ -35,13 +39,13 @@ setyearly_success_fx: |
 usage_setmonthly: |
   Usage:
   1) /setmonthly <category> <amount> (/sm)
-  2) /setmonthly <name> <amount> [currency] <category>
+  2) /setmonthly <category> <name> <amount> [currency]
   Examples:
   /setmonthly "Subscriptions" 35
-  /setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+  /setmonthly "Subscriptions & Gaming" "PSN Plus Extra" 16.99 EUR
 parse_amount_error_setmonthly: |
   Couldn't parse amount.
-  Example: /setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+  Example: /setmonthly "Subscriptions & Gaming" "PSN Plus Extra" 16.99 EUR
 setmonthly_success_base: |
   ✅ Monthly rule added: [{category}] {rule_name} = {amount:.2f} {currency}/month
 setmonthly_success_fx: |

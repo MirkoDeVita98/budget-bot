@@ -29,7 +29,6 @@ async def get_fx_rate(from_ccy: str, to_ccy: str = BASE_CURRENCY) -> Tuple[str, 
         "SELECT rate FROM fx_rates WHERE fx_date=? AND from_ccy=? AND to_ccy=?",
         (cache_day, from_ccy, to_ccy),
     ).fetchone()
-    conn.close()
 
     if row:
         rate = float(row["rate"])
@@ -53,7 +52,6 @@ async def get_fx_rate(from_ccy: str, to_ccy: str = BASE_CURRENCY) -> Tuple[str, 
         (cache_day, from_ccy, to_ccy, rate),
     )
     conn.commit()
-    conn.close()
 
     _FX_MEM_CACHE[mem_key] = rate
     return api_date, rate

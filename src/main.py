@@ -1,8 +1,8 @@
 from telegram.ext import Application, CommandHandler
 
 from config import BOT_TOKEN
-from db import init_db
-from handlers import *
+from db import init_db, shutdown_db_pool
+from handlers.handlers_config import create_handlers_config
 
 
 def main():
@@ -12,42 +12,23 @@ def main():
     init_db()
     app = Application.builder().token(BOT_TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("h", help_command))
-    app.add_handler(CommandHandler("setbudget", setbudget))
-    app.add_handler(CommandHandler("sb", setbudget))
-    app.add_handler(CommandHandler("setdaily", setdaily))
-    app.add_handler(CommandHandler("sd", setdaily))
-    app.add_handler(CommandHandler("setmonthly", setmonthly))
-    app.add_handler(CommandHandler("sm", setmonthly))
-    app.add_handler(CommandHandler("setyearly", setyearly))
-    app.add_handler(CommandHandler("sy", setyearly))
-    app.add_handler(CommandHandler("rules", rules))
-    app.add_handler(CommandHandler("r", rules))
-    app.add_handler(CommandHandler("delrule", delrule))
-    app.add_handler(CommandHandler("dr", delrule))
-    app.add_handler(CommandHandler("add", add))
-    app.add_handler(CommandHandler("a", add))
-    app.add_handler(CommandHandler("undo", undo))
-    app.add_handler(CommandHandler("u", undo))
-    app.add_handler(CommandHandler("expenses", expenses))
-    app.add_handler(CommandHandler("e", expenses))
-    app.add_handler(CommandHandler("delexpense", delexpense))
-    app.add_handler(CommandHandler("d", delexpense))
-    app.add_handler(CommandHandler("status", status))
-    app.add_handler(CommandHandler("s", status))
-    app.add_handler(CommandHandler("categories", categories))
-    app.add_handler(CommandHandler("c", categories))
-    app.add_handler(CommandHandler("month", month))
-    app.add_handler(CommandHandler("m", month))
-    app.add_handler(CommandHandler("export", export))
-    app.add_handler(CommandHandler("backupdb", backupdb))
-    app.add_handler(CommandHandler("resetmonth", resetmonth))
-    app.add_handler(CommandHandler("rm", resetmonth))
-    app.add_handler(CommandHandler("resetall", resetall))
+    # Load and register all handlers from config
+    handlers_config = create_handlers_config()
+    
+    for command_config in handlers_config.get_all_commands():
+        # Register primary command
+        app.add_handler(CommandHandler(command_config.primary_command, command_config.handler_function))
+        
+        # Register aliases
+        if command_config.aliases:
+            for alias in command_config.aliases:
+                app.add_handler(CommandHandler(alias, command_config.handler_function))
 
-    app.run_polling()
+    try:
+        app.run_polling()
+    finally:
+        # Cleanup database connections on shutdown
+        shutdown_db_pool()
 
 
 if __name__ == "__main__":

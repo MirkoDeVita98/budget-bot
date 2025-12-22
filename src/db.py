@@ -1,11 +1,78 @@
 import sqlite3
+import threading
+from contextlib import contextmanager
 from config import DB_PATH
 
 
+class DatabasePool:
+    """
+    Simple connection pool for SQLite.
+    
+    Since SQLite has limited concurrent write support, we use thread-local
+    storage to ensure each thread/coroutine gets its own connection.
+    This avoids "database is locked" errors and improves performance.
+    """
+    
+    def __init__(self, db_path: str, timeout: float = 30.0, check_same_thread: bool = False):
+        self.db_path = db_path
+        self.timeout = timeout
+        self.check_same_thread = check_same_thread
+        self._local = threading.local()
+    
+    def get_connection(self) -> sqlite3.Connection:
+        """Get or create a connection for the current thread."""
+        if not hasattr(self._local, 'connection') or self._local.connection is None:
+            self._local.connection = sqlite3.connect(
+                self.db_path,
+                timeout=self.timeout,
+                check_same_thread=self.check_same_thread
+            )
+            self._local.connection.row_factory = sqlite3.Row
+        return self._local.connection
+    
+    def close_connection(self) -> None:
+        """Close the connection for the current thread."""
+        if hasattr(self._local, 'connection') and self._local.connection is not None:
+            self._local.connection.close()
+            self._local.connection = None
+    
+    @contextmanager
+    def get_db(self):
+        """Context manager for getting a database connection."""
+        conn = self.get_connection()
+        try:
+            yield conn
+        except Exception:
+            conn.rollback()
+            raise
+    
+    def shutdown(self) -> None:
+        """Close all connections (for cleanup on exit)."""
+        self.close_connection()
+
+
+# Global connection pool instance
+_pool = DatabasePool(DB_PATH)
+
+
 def db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get a database connection from the pool."""
+    return _pool.get_connection()
+
+
+def get_db_context():
+    """Get a context manager for database operations."""
+    return _pool.get_db()
+
+
+def close_db():
+    """Close the current thread's database connection."""
+    _pool.close_connection()
+
+
+def shutdown_db_pool():
+    """Shutdown the entire connection pool."""
+    _pool.shutdown()
 
 
 def ensure_column(conn, table: str, col: str, coltype: str):
@@ -111,4 +178,3 @@ def init_db():
     ensure_column(conn, "expenses", "fx_date", "TEXT")
 
     conn.commit()
-    conn.close()
