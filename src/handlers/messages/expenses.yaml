@@ -1,0 +1,28 @@
+# Messages for expenses.py
+usage_add: |
+  Usage: /add <category> <name> <amount> [currency] (/a)
+  Example: /add Travel Taxi 20 EUR
+currency_error: "Currency must be a 3-letter code (EUR, USD, ...)."
+amount_parse_error: "Couldn't parse amount. Example: /add Travel Taxi 20 EUR"
+add_success_base: "✅ Added: [{category}] {name} = {amount:.2f} {currency}"
+add_success_fx: |
+  ✅ Added: [{category}] {name}
+  {amount:.2f} {currency} → {converted:.2f} {base_currency} (rate {rate:.6f}, {fx_date})
+new_unplanned_category: |
+  ℹ️ New *unplanned* category detected: *{category}* (no rule set). It will count as unplanned spend until you add a rule.
+nothing_to_undo: "Nothing to undo this month."
+undo_success_base: "🗑️ Removed last expense: {amount:.2f} {currency}"
+undo_success_fx: |
+  🗑️ Removed last expense: {amount:.2f} {currency} (→ {converted:.2f} {base_currency})
+expenses_title: "🧾 Expenses for {month}{category}"
+expenses_no_rows: "{title}\nNo expenses found."
+expenses_summary: "{title} (latest {count})\nTotal shown: {total:.2f} {currency}"
+expenses_row_base: "- ID {id}: [{category}] {name} — {amount:.2f} {currency} ({created})"
+expenses_row_fx: "- ID {id}: [{category}] {name} — {amount:.2f} {currency} → {converted:.2f} {base_currency} ({created})"
+expenses_delete_tip: "Delete one with: /delexpense <id> (or /d <id>)"
+expenses_filter_tip: "Tip: filter by category: /expenses \"Food & Drinks\" 50 (or /e)"
+expenses_remove_filter_tip: "Tip: remove filter: /expenses {month} {limit} (or /e)"
+delexpense_usage: "Usage: /delexpense <id> (`/d`)\nTip: use /expenses (or /e) to see IDs."
+delexpense_id_error: "Expense id must be an integer. Example: /delexpense 42"
+delexpense_success: "🗑️ Expense deleted."
+delexpense_failure: "⚠️ Expense not found (or not yours)."

@@ -1,8 +1,6 @@
 import calendar
 from datetime import datetime
-from typing import Optional, Dict, Tuple, List
-
-import shlex
+from typing import Optional, Dict, Tuple
 from db import db
 from config import BASE_CURRENCY
 from fx import get_fx_rate, today_key
@@ -317,10 +315,16 @@ def reset_all_user_data(user_id: int) -> None:
     conn.close()
 
 
-# ---- Rule creation with optional FX (named monthly) ----
-async def add_monthly_rule_named_fx(
-    user_id: int, rule_name: str, amount: float, currency: str, category: str
+# ---- Rule creation with optional FX ----
+async def add_rule_named_fx(
+    user_id: int,
+    rule_name: str,
+    amount: float,
+    currency: str,
+    category: str,
+    period: str = "monthly",
 ):
+    """Add a rule with optional FX conversion. Period can be 'daily', 'monthly', or 'yearly'."""
     currency = currency.upper()
     if currency == BASE_CURRENCY:
         fx_date = today_key()
@@ -330,7 +334,7 @@ async def add_monthly_rule_named_fx(
         fx_date, rate = await get_fx_rate(currency, BASE_CURRENCY)
         chf = float(amount) * float(rate)
 
-    add_rule(user_id, category, rule_name, "monthly", chf)
+    add_rule(user_id, category, rule_name, period, chf)
     return fx_date, rate, chf
 
 

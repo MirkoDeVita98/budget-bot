@@ -1,0 +1,41 @@
+# Messages for setup.py
+start_message: |
+  💸 *Budget Bot* 💸
+
+  *Setup:*
+  /setbudget `/sb` — _Set monthly budget_
+  /setdaily `/sd` — _Add daily spending rule_
+  /setmonthly `/sm` — _Add monthly spending rule_
+  /setyearly `/sy` — _Add yearly spending rule_
+  /rules `/r` — _List all rules_
+  /delrule `/dr` — _Delete a rule_
+
+  *Spending:*
+  /add `/a` — _Record an expense_
+  /expenses `/e` — _List expenses_
+  /delexpense `/d` — _Delete an expense_
+  /undo `/u` — _Undo last expense_
+
+  *Reports:*
+  /status `/s` — _Budget summary & spending_
+  /categories `/c` — _List all categories_
+  /month `/m` — _Full month report_
+
+  *Export & Backup:*
+  /export — _Export expenses, rules, or budgets_
+  /backupdb — _Backup your database_
+
+  *Maintenance:*
+  /resetmonth `/rm` — _Clear month data_
+  /resetall — _Delete everything_
+
+  *Help:*
+  /help `/h` — _Show this message_
+
+  *Quick Examples:*
+  /a "Food & Drinks" "Taxi to airport" 20 EUR
+  /sm "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+  /s "Food & Drinks"
+  /e "Food & Drinks"
+
+  💡 *Tip:* _Use quotes for spaces in category/item names!_

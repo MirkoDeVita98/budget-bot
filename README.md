@@ -27,6 +27,30 @@ All amounts are **computed and reported in your BASE_CURRENCY**, even when enter
 
 ---
 
+## ⚡ Quick Start
+
+1. **Get your bot token** from [@BotFather](https://t.me/botfather) on Telegram
+2. **Clone and setup**:
+   ```bash
+   git clone https://github.com/MirkoDeVita98/budget-bot.git
+   cd budget-bot
+   python3.11 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. **Configure** your `.env`:
+   ```bash
+   cp .env.example .env
+   # Edit .env and paste your BOT_TOKEN
+   ```
+4. **Run the bot**:
+   ```bash
+   python main.py
+   ```
+5. **Start using** it: Open Telegram, find your bot, and send `/start`
+
+---
+
 ## Features
 
 ### Budgets
@@ -90,25 +114,42 @@ Alerts are triggered immediately after adding an expense.
 
 ```text
 budget-bot/
-├── .env                  # secrets (NOT committed)
+├── .env                  # secrets (NOT committed to git)
 ├── .env.example          # environment variable template
-├── .gitignore
-├── requirements.txt
+├── .gitignore            # git ignore rules
+├── LICENSE               # MIT License
+├── README.md             # this file
+├── requirements.txt      # Python dependencies
 ├── main.py               # application entry point
 ├── budget.db             # SQLite database (created at runtime)
 ├── assets/
-│   └── expense_bot_icon.png
+│   └── expense_bot_icon.png  # bot icon
 └── src/
     ├── __init__.py
     ├── config.py         # configuration & environment variables
     ├── db.py             # database schema & migrations
-    ├── fx.py             # FX API integration & caching
+    ├── fx.py             # FX API integration & currency conversion
     ├── services.py       # business logic (budgets, rules, expenses)
-    ├── alerts.py         # alert detection logic
-    ├── export_csv.py     # CSV exports
-    ├── textparse.py      # robust quoted argument parsing
-    └── handlers.py       # Telegram command handlers
-
+    ├── alerts.py         # alert system for budget notifications
+    ├── textparse.py      # text parsing utilities
+    ├── export_csv.py     # CSV export functionality
+    └── handlers/         # Telegram command handlers
+        ├── __init__.py
+        ├── base.py       # base handler class & utilities
+        ├── setup.py      # /start and /help commands
+        ├── budget.py     # /setbudget, /status, /month commands
+        ├── rules.py      # budget rules management (/setdaily, /setmonthly, etc.)
+        ├── expenses.py   # expense management (/add, /undo, /expenses, etc.)
+        ├── export.py     # /export and /backupdb commands
+        ├── reset.py      # /resetmonth and /resetall commands
+        └── messages/     # YAML message templates
+            ├── base.yaml
+            ├── setup.yaml
+            ├── budget.yaml
+            ├── rules.yaml
+            ├── expenses.yaml
+            ├── export.yaml
+            └── reset.yaml
 ```
 
 ## Requirements
@@ -171,214 +212,295 @@ BOT_TOKEN=
 BASE_CURRENCY=CHF
 DB_PATH=budget.db
 ```
-`.env` (local only, NOT committed)
+`.env` (local only, NOT committed to git)
 ```bash
 BOT_TOKEN=PASTE_YOUR_TELEGRAM_BOT_TOKEN_HERE
 BASE_CURRENCY=CHF
 DB_PATH=budget.db
 ```
 
+### Customization
+- **BASE_CURRENCY**: The currency all amounts are converted to (default: CHF). Examples: USD, EUR, GBP, etc.
+- **DB_PATH**: Where to store the SQLite database file (default: budget.db in the current directory)
+
 ## Running the Bot
+
 ```bash
+cd src
 python main.py
 ```
-Once the bot is running:
-- Open Telegram
-- Search for your bot by its username
-- Open the chat
-- Send the command:
-```bash
-/start
-```
-The `/start` command initializes the bot and displays the full list of available commands.
-You can also use:
-```bash
-/help
-```
+
+The bot will start polling for messages. Once running:
+1. Open Telegram
+2. Search for your bot by its username
+3. Send `/start` to initialize and see all available commands
+4. (Optional) Send `/help` to see the help message
+
+**Note:** The bot will continue running until you stop it (Ctrl+C). For persistent hosting, consider using a service like Heroku, AWS, or a VPS.
 
 ## Usage Guide
 
+### Command Shortcuts
+Most commands have shorthand aliases to make them easier to use:
+
+| Command | Shorthand | Description |
+|---------|-----------|-------------|
+| `/help` | `/h` | Show help message |
+| `/setbudget` | `/sb` | Set monthly budget |
+| `/setdaily` | `/sd` | Add a daily budget rule |
+| `/setmonthly` | `/sm` | Add a monthly budget rule |
+| `/setyearly` | `/sy` | Add a yearly budget rule |
+| `/rules` | `/r` | View all budget rules |
+| `/delrule` | `/dr` | Delete a budget rule |
+| `/add` | `/a` | Add an expense |
+| `/undo` | `/u` | Undo last expense |
+| `/expenses` | `/e` | List expenses |
+| `/delexpense` | `/d` | Delete an expense |
+| `/status` | `/s` | Show budget status |
+| `/categories` | `/c` | List all categories |
+| `/month` | `/m` | Show expenses for a specific month |
+| `/resetmonth` | `/rm` | Reset current month expenses |
+
 ### Set Monthly Budget
+
+Set your overall monthly spending limit:
 ```bash
 /setbudget 3000
 ```
 
+This is your maximum allowed spending for the month. Use `/status` to see:
+- How much you've spent so far
+- How much budget remains
+- Breakdown by category
+
+**Tip:** You can set different budgets for different months, and the bot remembers your historical budgets.
+
 ### Define Budget Rules
-- Daily rule
+Budget rules define your planned spending for each category. The bot will alert you when you exceed a rule.
+
+- **Daily rule** (automatically scaled to the month)
 ```bash
 /setdaily Food 15
 ```
-- Monthly rule
+This means you plan to spend 15 CHF on Food per day. The bot automatically scales this to the number of days in the month.
+
+- **Monthly rule**
 ```bash
 /setmonthly Rent 700
 ```
-- Monthly rule with name and currency
-```bash
-/setmonthly PSN 16.99 EUR Subscription
-```
-- Yearly rule
+
+- **Yearly rule** (automatically divided by 12)
 ```bash
 /setyearly CarInsurance 600 Transport
 ```
-- View and manage rules
+
+- **Named rule** (useful for subscriptions)
+```bash
+/setmonthly PSN 16.99 EUR Subscription
+```
+You can specify currency for any rule; it will be converted to BASE_CURRENCY.
+
+- **View all rules**
 ```bash
 /rules
+```
+
+- **Delete a rule by ID**
+```bash
 /delrule <id>
 ```
 ### Add Expenses
-- **BASE_CURRENCY** expense
+
+Add a new expense (amount is required, currency defaults to BASE_CURRENCY):
+
+- **In your base currency**
 ```bash
 /add Food Groceries 62.40
 ```
-- Foreign currency expense
+
+- **In a foreign currency** (automatically converted)
 ```bash
 /add Travel Taxi 20 EUR
 ```
-Tip: Use quotes for multi-word names or categories:
+
+- **Multi-word names or categories** (use quotes)
 ```bash
 /add "Food & Drinks" "Migros groceries" 62.40
-/setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
-/status "Food & Drinks"
+/add "Entertainment & Gaming" "PS Store subscription" 16.99 EUR
 ```
+
+**Pro tip:** Use `/a` as shorthand (e.g., `/a Food Coffee 5`)
+
 ### List and Delete Expenses
-- List expenses for the current month (default limit = 50):
+
+View your expenses with flexible filtering options:
+
+- **Current month expenses** (default: last 50 items)
 ```bash
 /expenses
 ```
-- List expenses for a specific month:
+
+- **Expenses from a specific month**
 ```bash
 /expenses 2025-12
 ```
-- List expenses with a custom limit:
+
+- **Customize the number shown** (prevents very long messages)
 ```bash
 /expenses 2025-12 100
 ```
-The limit parameter controls how many of the most recent expenses are shown, to avoid very long Telegram messages.
-- Delete a specific expense by ID:
+
+- **Filter by category**
 ```bash
-/delexpense <id>
+/expenses "Food & Drinks"
 ```
+
+- **Combine month, category, and limit**
+```bash
+/expenses 2025-12 "Food & Drinks" 100
+```
+
+Each expense is shown with a unique ID, making it easy to identify and delete specific items.
+
+- **Delete a specific expense by ID**
+```bash
+/delexpense 123
+```
+
+Use `/expenses` to see the IDs, then use `/delexpense <id>` to remove unwanted items.
 ### Reports
+
+Check your spending and budget status:
+
+- **Current month overview**
 ```bash
 /status
+```
+
+- **Specific category status**
+```bash
 /status Food
+```
+Shows planned budget, actual spending, and remaining amount for that category.
+
+- **Past month summary**
+```bash
 /month 2025-02
 ```
+
+- **All categories you've used**
+```bash
+/categories
+```
 ### Undo & Reset
-- Undo last expense:
+
+Manage your expenses with these safety features:
+
+- **Undo the last expense**
 ```bash
 /undo
 ```
-- You can fully reset a month (expenses + budget) with:
+Only undoes the most recent expense in the current month.
+
+- **Reset current month's expenses**
 ```bash
 /resetmonth YYYY-MM
 ```
-- Reset everything:
+Deletes all expenses for the current month, but keeps your rules and budget.
+
+- **Complete reset** (⚠️ use with caution)
 ```bash
 /resetall yes
 ```
-⚠️ `/resetall yes` permanently deletes all stored data.
+Permanently deletes **all data**: expenses, rules, and budgets. This cannot be undone!
 
-## Month Rollovers & Historical Consistency
+## Data Storage & Security
 
-This bot is designed to keep your **financial history accurate and predictable**, even as your rules and budgets evolve over time.
+### Local Storage
+- Uses a local SQLite database (`budget.db`) to store all your data
+- The database schema is created automatically on first run
+- **No data is sent to any cloud service** - everything stays on your machine
+- You can back up your database using `/backupdb` command
 
-### How rollovers work
+### Security Best Practices
+- ⚠️ **Never commit** your `.env` file to git (it contains your bot token)
+- ⚠️ **Never share** your Telegram bot token publicly
+- If your token is exposed, immediately revoke it:
+  ```text
+  Telegram → @BotFather → /mybots → (select your bot) → Revoke current token
+  ```
+- Store your `.env` file in a safe location with restricted file permissions
+- When hosting on a server, use environment variable management tools instead of .env files
+## Notifications & Alerts
 
-#### 📅 Budgets
-- When a **new month starts**, if you haven’t explicitly set a budget yet:
-  - The bot **automatically carries forward** the last known budget.
-  - This happens only for the **current month**.
-- When viewing past months with `/month YYYY-MM`:
-  - Budgets are **read-only**
-  - No automatic carry or creation happens
-  - You only see what was actually set for that month
+The bot automatically monitors your spending and sends alerts when certain thresholds are exceeded. Alerts are triggered immediately after you add an expense.
 
-### Rules (the important part)
-Rules are global by default, but to preserve history:
-- On the first interaction in a new month, the bot automatically:
-  - Creates a snapshot of the previous month’s rules
-  - Stores them internally as a frozen historical state
-- This happens automatically, without any manual command
-- As a result:
-  - Past months always reflect the rules that were active at that time
-  - Future changes to rules do not affect historical months
-This ensures:
-- `/status` → always reflects current planning
-- `/month YYYY-MM` → always reflects historical planning
-No cron jobs, no schedulers — snapshots are created lazily and safely on first use.
+### Alert Types
 
-## Notifications (Alerts)
-
-The bot can automatically notify you when:
-
-- ⚠️ You exceed a **category planned budget** (e.g. Food goes below 0)
-- 🚨 You exceed the **overall monthly budget**
-- 🔔 You are running low on remaining budget (default: < 10%)
-- ℹ️ A new unplanned category is detected
-
-Alerts are triggered immediately after you add an expense:
-
-```bash
-/add Food Groceries 120
-```
-Example alert (category exceeded):
+- **⚠️ Category exceeded**: You've spent more than planned for a category
 ```text
 ⚠️ Category exceeded: Food
 Planned: 450.00 CHF
 Spent: 520.00 CHF
 Over: 70.00 CHF
 ```
-Example alert (overall exceeded):
+
+- **🚨 Overall budget exceeded**: Your total spending exceeded the monthly budget
 ```text
 🚨 Overall budget exceeded!
 Remaining overall is now: -25.40 CHF
 ```
-Example alert (unplanned category):
+
+- **🔔 Budget running low**: You're approaching your limit (default: < 10% remaining)
+- **ℹ️ New unplanned category**: You added an expense to a category without a budget rule
 ```text
-ℹ️ New unplanned category detected: Gaming (no rule set). It will count as unplanned spend until you add a rule.
+ℹ️ New unplanned category detected: Gaming (no rule set). 
+It will count as unplanned spend until you add a rule.
 ```
-## Export / Backup (CSV + SQLite)
+
+### How to Use Alerts
+1. Set up budget rules with `/setdaily`, `/setmonthly`, `/setyearly`
+2. Set an overall monthly budget with `/setbudget`
+3. Add expenses as usual - the bot will automatically notify you if you exceed any limits
+4. Use alerts to stay aware of your spending patterns
+## Export & Backup
 
 ### Export to CSV
 
-Export the current month expenses (default):
+Export your data in CSV format (useful for spreadsheets, analysis, or backups):
+
+- **Current month expenses** (default)
 ```bash
 /export
 ```
-Export expenses for a specific month:
+
+- **Expenses for a specific month**
 ```bash
 /export expenses 2025-12
 ```
-Export your rules:
+
+- **All your budget rules**
 ```bash
 /export rules
 ```
-Export your monthly budgets:
+
+- **Monthly budgets history**
 ```bash
 /export budgets
 ```
-The bot will send you a downloadable `.csv` file.
-### Backup the SQLite database
-This sends the raw `budget.db` file containing all your data:
+
+The bot sends you a downloadable `.csv` file that you can open in Excel, Google Sheets, or any spreadsheet application.
+
+### Backup the SQLite Database
+
+Export the complete raw database file:
 ```bash
 /backupdb
 ```
-## Data Storage & Privacy
-- Local SQLite database only (budget.db)
-- No cloud services
-- No third-party data sharing
-- You fully own your data
-  
-## Security Notes
-- Never commit `.env`
-- Never share your Telegram bot token
-- If exposed:
-```bash
-@BotFather
-/mybots
-Revoke token
-```
+
+This sends the entire `budget.db` file containing all your data. You can:
+- Download and save it as a complete backup
+- Copy it to another machine and replace the `budget.db` file to restore your data
 ## TODO / Future Improvements
 The following features are planned or under consideration:
 - 📄 Automatic expense extraction using a self-hosted LLM
@@ -393,21 +515,42 @@ The following features are planned or under consideration:
   - Category trends over time
   - Monthly comparisons
   - Forecasting based on past spending
-- 🔄 Smarter rollovers
-  - Compare rule snapshots vs current rules
-  - Highlight what changed month-over-month:
-    - New rules added
-    - Rules removed
-    - Amount changes
-  - Optional command like:
-    ```bash
-    /rules diff 2025-11 2025-12
-    ```
-  - Or automatic summary:
-    ```text
-    “Rules changed since last month: +Subscriptions, −Transport, Food +50 CHF”
-    ```
-    
+- 🔄 Improved automation
+  - Smarter rules
+  - Optional confirmations for imported expenses
+  - Confidence scores for LLM-parsed transactions
+
+## Troubleshooting
+
+### Bot doesn't respond to commands
+- **Check:** Is the bot running? (`python main.py` in the src directory)
+- **Check:** Did you set `BOT_TOKEN` in `.env`?
+- **Check:** Are you messaging the correct bot? Use `/start` to initialize it
+
+### "No module named 'telegram'" error
+```bash
+pip install -r requirements.txt
+```
+
+### Currency conversion fails
+- The bot uses the **Frankfurter API** which requires an internet connection
+- Some currencies may not be supported (common ones like EUR, USD, GBP are supported)
+- Check the [Frankfurter API documentation](https://www.frankfurter.app/) for supported currencies
+
+### Database errors
+- If you see database errors, delete `budget.db` and restart the bot (it will recreate the schema)
+- **Warning:** This will delete all your stored data!
+
+### Virtual environment issues
+- Ensure you're using Python 3.10+:
+  ```bash
+  python3 --version
+  ```
+- Reactivate the virtual environment:
+  ```bash
+  source .venv/bin/activate
+  ```
+
 ## License
 This project is licensed under the MIT License.
 You are free to:

@@ -1,0 +1,4 @@
+# Messages for base.py
+invalid_input: "⚠️ Invalid input. Please check your command."
+unexpected_error: "⚠️ An unexpected error occurred. Please try again later."
+snapshot_created: "📌 Snapshot created for *{snap_month}* (rules locked for history)."

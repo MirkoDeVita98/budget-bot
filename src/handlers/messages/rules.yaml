@@ -1,0 +1,59 @@
+# Messages for rules.py
+usage_setdaily: |
+  Usage:
+  1) /setdaily <category> <amount> (/sd)
+  2) /setdaily <name> <amount> [currency] <category>
+  Examples:
+  /setdaily "Food & Drinks" 15
+  /setdaily "Lunch allowance" 25 EUR "Food & Drinks"
+parse_amount_error_setdaily: |
+  Couldn't parse amount.
+  Example: /setdaily "Lunch allowance" 25 EUR "Food & Drinks"
+setdaily_success_base: |
+  ✅ Daily rule added: [{category}] {rule_name} = {amount:.2f} {currency}/day
+setdaily_success_fx: |
+  ✅ Daily rule added: [{category}] {rule_name}
+  {amount:.2f} {currency}/day → {converted:.2f} {base_currency}/day (rate {rate:.6f}, {fx_date})
+
+usage_setyearly: |
+  Usage:
+  1) /setyearly <name> <amount> [category] (/sy)
+  2) /setyearly <name> <amount> [currency] <category>
+  Examples:
+  /setyearly "Car Insurance" 600
+  /setyearly "Car Insurance" 700 EUR "Transport & Car"
+parse_amount_error_setyearly: |
+  Couldn't parse amount.
+  Example: /setyearly "Car Insurance" 700 EUR "Transport & Car"
+setyearly_success_base: |
+  ✅ Yearly rule added: {name} ({category}) = {amount:.2f} {currency}/year (→ {monthly:.2f}/month)
+setyearly_success_fx: |
+  ✅ Yearly rule added: {name} ({category})
+  {amount:.2f} {currency}/year → {converted:.2f} {base_currency}/year (rate {rate:.6f}, {fx_date})
+  → {monthly:.2f} {base_currency}/month
+
+usage_setmonthly: |
+  Usage:
+  1) /setmonthly <category> <amount> (/sm)
+  2) /setmonthly <name> <amount> [currency] <category>
+  Examples:
+  /setmonthly "Subscriptions" 35
+  /setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+parse_amount_error_setmonthly: |
+  Couldn't parse amount.
+  Example: /setmonthly "PSN Plus Extra" 16.99 EUR "Subscriptions & Gaming"
+setmonthly_success_base: |
+  ✅ Monthly rule added: [{category}] {rule_name} = {amount:.2f} {currency}/month
+setmonthly_success_fx: |
+  ✅ Monthly rule added: [{category}] {rule_name}
+  {amount:.2f} {currency}/month → {converted:.2f} {base_currency}/month (rate {rate:.6f}, {fx_date})
+
+no_rules: "No rules yet."
+rules_list_header: "📌 Rules (stored in {currency}):"
+rules_list_item: "- ID {id}: [{category}] {name} — {amount:.2f} {currency} / {period}"
+rules_list_footer: "\nDelete one with: /delrule <id>"
+
+usage_delrule: "Usage: /delrule <id>"
+rule_id_error: "Rule id must be an integer."
+delrule_success: "🗑️ Rule deleted."
+delrule_failure: "⚠️ Rule not found."

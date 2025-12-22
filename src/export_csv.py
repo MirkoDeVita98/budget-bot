@@ -1,6 +1,5 @@
 import csv
 import io
-from typing import Optional
 
 from db import db
 from config import BASE_CURRENCY

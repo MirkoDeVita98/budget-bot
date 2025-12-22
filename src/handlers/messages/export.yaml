@@ -1,0 +1,10 @@
+# Messages for export.py
+usage_export: |
+  Usage:
+  /export
+  /export expenses [YYYY-MM]
+  /export rules
+  /export budgets
+invalid_month: "Month must be YYYY-MM (example: /export expenses 2025-12)"
+export_caption: "📄 {filename}"
+backup_caption: "🗄️ budget.db backup (SQLite)"

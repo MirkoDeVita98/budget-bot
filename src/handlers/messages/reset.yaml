@@ -1,0 +1,5 @@
+# Messages for reset.py
+usage_resetmonth: "Usage: /resetmonth [YYYY-MM] (/rm [YYYY-MM])\nExample: /resetmonth 2025-11"
+resetmonth_summary: "🧹 Reset month {month}:\n- Deleted expenses: {deleted_expenses}\n- Deleted budget: {deleted_budget}"
+resetall_warning: "⚠️ This will DELETE ALL your data.\nRun: /resetall yes"
+resetall_success: "🧨 All your budget data has been reset."
