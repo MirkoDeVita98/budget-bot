@@ -155,14 +155,15 @@ def get_period_emoji(period: str) -> str:
     Convert period name to emoji indicator.
     
     Args:
-        period: Period name (daily, monthly, yearly)
+        period: Period name (daily, weekly, monthly, yearly)
     
     Returns:
-        Emoji (☀️, 📅, 📆) or original if unknown
+        Emoji (☀️, 📆, 📅, 📊) or original if unknown
     """
     emoji_map = {
         "daily": "☀️",
+        "weekly": "📆",
         "monthly": "📅",
-        "yearly": "📆",
+        "yearly": "📊",
     }
     return emoji_map.get(period, period)

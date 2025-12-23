@@ -103,7 +103,7 @@ def init_db():
             user_id INTEGER NOT NULL,
             category TEXT NOT NULL,
             name TEXT NOT NULL,
-            period TEXT NOT NULL CHECK(period IN ('daily','monthly','yearly')),
+            period TEXT NOT NULL CHECK(period IN ('daily','weekly','monthly','yearly')),
             amount REAL NOT NULL
         )
     """
@@ -151,7 +151,7 @@ def init_db():
             month TEXT NOT NULL,
             category TEXT NOT NULL,
             name TEXT NOT NULL,
-            period TEXT NOT NULL CHECK(period IN ('daily','monthly','yearly')),
+            period TEXT NOT NULL CHECK(period IN ('daily','weekly','monthly','yearly')),
             amount REAL NOT NULL,
             created_at TEXT DEFAULT (datetime('now')),
             PRIMARY KEY (user_id, month, category, name, period)

@@ -69,20 +69,31 @@ async def _handle_rule_setter(
     user_id: int,
     args: list,
     period: str,
-    usage_key: str,
-    error_key: str,
-    success_base_key: str,
-    success_fx_key: str,
+    cmd: str,
+    abbr: str,
 ):
     """
-    Generic handler for setdaily/setmonthly/setyearly.
+    Generic handler for setdaily/setweekly/setmonthly/setyearly.
 
     Supports two modes:
     1. Legacy: /cmd <category> <amount>
     2. Named: /cmd <category> <name> <amount> [currency]
     """
+    # Map period to human-readable names
+    period_map = {
+        "daily": {"name": "Daily", "label": "day"},
+        "weekly": {"name": "Weekly", "label": "week"},
+        "monthly": {"name": "Monthly", "label": "month"},
+        "yearly": {"name": "Yearly", "label": "year"},
+    }
+    period_info = period_map.get(period, {"name": "Unknown", "label": period})
+
     if len(args) < 2:
-        return await reply(update, context, MESSAGES[usage_key])
+        return await reply(
+            update,
+            context,
+            MESSAGES["usage_rule"].format(cmd=cmd, abbr=abbr),
+        )
 
     # Legacy mode: exactly 2 args
     if len(args) == 2:
@@ -90,24 +101,31 @@ async def _handle_rule_setter(
         try:
             amt = parse_amount(args[1])
         except Exception:
-            return await reply(update, context, MESSAGES[error_key])
+            return await reply(
+                update,
+                context,
+                MESSAGES["parse_amount_error_rule"].format(cmd=cmd, abbr=abbr),
+            )
 
         # Validate inputs
         try:
             amt = validate_amount(amt, field_name="amount")
             category = validate_category(category)
         except (AmountValidationError, CategoryValidationError) as e:
-            return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get(error_key, "Invalid input")))
+            return await reply(update, context, ERROR_MESSAGES.get(e.message, "Invalid input"))
 
         add_rule(user_id, category, f"{category} {period}", period, amt)
         return await reply(
             update,
             context,
-            MESSAGES[success_base_key].format(
+            MESSAGES["rule_success_base"].format(
                 category=category,
                 rule_name=f"{category} {period}",
                 amount=amt,
                 currency=BASE_CURRENCY,
+                period_name=period_info["name"],
+                period_label=period_info["label"],
+                extra="",
             ),
         )
 
@@ -127,7 +145,11 @@ async def _handle_rule_setter(
     try:
         amount = parse_amount(args[amount_index])
     except Exception:
-        return await reply(update, context, MESSAGES[error_key])
+        return await reply(
+            update,
+            context,
+            MESSAGES["parse_amount_error_rule"].format(cmd=cmd, abbr=abbr),
+        )
 
     rule_name = " ".join(args[1:name_end_index]).strip() or "(no name)"
 
@@ -138,7 +160,7 @@ async def _handle_rule_setter(
         if rule_name != "(no name)":
             rule_name = validate_name(rule_name, field_name="name")
     except (AmountValidationError, CategoryValidationError, NameValidationError) as e:
-        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get(error_key, "Invalid input")))
+        return await reply(update, context, ERROR_MESSAGES.get(e.message, "Invalid input"))
 
     fx_date, rate, chf_amount = await add_rule_named_fx(
         user_id, rule_name, amount, currency, category, period
@@ -148,20 +170,23 @@ async def _handle_rule_setter(
         return await reply(
             update,
             context,
-            MESSAGES[success_base_key].format(
+            MESSAGES["rule_success_base"].format(
                 category=category,
                 rule_name=rule_name,
                 amount=chf_amount,
                 currency=BASE_CURRENCY,
                 name=rule_name,  # for yearly
                 monthly=chf_amount / 12 if period == "yearly" else None,
+                period_name=period_info["name"],
+                period_label=period_info["label"],
+                extra="",
             ),
         )
     else:
         return await reply(
             update,
             context,
-            MESSAGES[success_fx_key].format(
+            MESSAGES["rule_success_fx"].format(
                 category=category,
                 rule_name=rule_name,
                 amount=amount,
@@ -172,6 +197,9 @@ async def _handle_rule_setter(
                 fx_date=fx_date,
                 name=rule_name,  # for yearly
                 monthly=chf_amount / 12 if period == "yearly" else None,
+                period_name=period_info["name"],
+                period_label=period_info["label"],
+                extra="",
             ),
         )
 
@@ -187,10 +215,24 @@ async def setdaily(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id,
         args,
         "daily",
-        "usage_setdaily",
-        "parse_amount_error_setdaily",
-        "setdaily_success_base",
-        "setdaily_success_fx",
+        "setdaily",
+        "sd",
+    )
+
+
+@rollover_notify
+async def setweekly(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    args = get_args(update)
+
+    return await _handle_rule_setter(
+        update,
+        context,
+        user_id,
+        args,
+        "weekly",
+        "setweekly",
+        "sw",
     )
 
 
@@ -205,10 +247,8 @@ async def setyearly(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id,
         args,
         "yearly",
-        "usage_setyearly",
-        "parse_amount_error_setyearly",
-        "setyearly_success_base",
-        "setyearly_success_fx",
+        "setyearly",
+        "sy",
     )
 
 
@@ -223,10 +263,8 @@ async def setmonthly(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id,
         args,
         "monthly",
-        "usage_setmonthly",
-        "parse_amount_error_setmonthly",
-        "setmonthly_success_base",
-        "setmonthly_success_fx",
+        "setmonthly",
+        "sm",
     )
 
 

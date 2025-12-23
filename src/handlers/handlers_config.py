@@ -80,6 +80,7 @@ def create_handlers_config() -> HandlersRegistry:
         help_command,
         setbudget,
         setdaily,
+        setweekly,
         setmonthly,
         setyearly,
         rules,
@@ -105,6 +106,7 @@ def create_handlers_config() -> HandlersRegistry:
     # Budget & Rules commands
     registry.register("setbudget", setbudget, aliases=["sb"])
     registry.register("setdaily", setdaily, aliases=["sd"])
+    registry.register("setweekly", setweekly, aliases=["sw"])
     registry.register("setmonthly", setmonthly, aliases=["sm"])
     registry.register("setyearly", setyearly, aliases=["sy"])
     registry.register("rules", rules, aliases=["r"])

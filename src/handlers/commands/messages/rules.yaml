@@ -3,54 +3,22 @@ usage_setbudget: "Usage: /setbudget <amount> (/sb)"
 parse_amount_error: "Couldn't parse amount. Example: /setbudget 2500"
 set_budget_success: "✅ Set budget for {month}: {amount:.2f} {currency}"
 
-usage_setdaily: |
+# Generic messages for rule setters (shared across setdaily, setweekly, setmonthly, setyearly)
+usage_rule: |
   Usage:
-  1) /setdaily <category> <amount> (/sd)
-  2) /setdaily <category> <name> <amount> [currency]
+  1) /{cmd} <category> <amount> (/{abbr})
+  2) /{cmd} <category> <name> <amount> [currency]
   Examples:
-  /setdaily "Food & Drinks" 15
-  /setdaily "Food & Drinks" "Lunch allowance" 25 EUR
-parse_amount_error_setdaily: |
+  /{cmd} "Food & Drinks" 15
+  /{cmd} "Food & Drinks" "Lunch allowance" 25 EUR
+parse_amount_error_rule: |
   Couldn't parse amount.
-  Example: /setdaily "Food & Drinks" "Lunch allowance" 25 EUR
-setdaily_success_base: |
-  ✅ Daily rule added: [{category}] {rule_name} = {amount:.2f} {currency}/day
-setdaily_success_fx: |
-  ✅ Daily rule added: [{category}] {rule_name}
-  {amount:.2f} {currency}/day → {converted:.2f} {base_currency}/day (rate {rate:.6f}, {fx_date})
-
-usage_setyearly: |
-  Usage:
-  1) /setyearly <category> <amount> (/sy)
-  2) /setyearly <category> <name> <amount> [currency]
-  Examples:
-  /setyearly "Transport & Car" 600
-  /setyearly "Transport & Car" "Car Insurance" 700 EUR
-parse_amount_error_setyearly: |
-  Couldn't parse amount.
-  Example: /setyearly "Transport & Car" "Car Insurance" 700 EUR
-setyearly_success_base: |
-  ✅ Yearly rule added: {name} ({category}) = {amount:.2f} {currency}/year (→ {monthly:.2f}/month)
-setyearly_success_fx: |
-  ✅ Yearly rule added: {name} ({category})
-  {amount:.2f} {currency}/year → {converted:.2f} {base_currency}/year (rate {rate:.6f}, {fx_date})
-  → {monthly:.2f} {base_currency}/month
-
-usage_setmonthly: |
-  Usage:
-  1) /setmonthly <category> <amount> (/sm)
-  2) /setmonthly <category> <name> <amount> [currency]
-  Examples:
-  /setmonthly "Subscriptions" 35
-  /setmonthly "Subscriptions & Gaming" "PSN Plus Extra" 16.99 EUR
-parse_amount_error_setmonthly: |
-  Couldn't parse amount.
-  Example: /setmonthly "Subscriptions & Gaming" "PSN Plus Extra" 16.99 EUR
-setmonthly_success_base: |
-  ✅ Monthly rule added: [{category}] {rule_name} = {amount:.2f} {currency}/month
-setmonthly_success_fx: |
-  ✅ Monthly rule added: [{category}] {rule_name}
-  {amount:.2f} {currency}/month → {converted:.2f} {base_currency}/month (rate {rate:.6f}, {fx_date})
+  Example: /{cmd} "Food & Drinks" "Lunch allowance" 25 EUR
+rule_success_base: |
+  ✅ {period_name} rule added: [{category}] {rule_name} = {amount:.2f} {currency}/{period_label}{extra}
+rule_success_fx: |
+  ✅ {period_name} rule added: [{category}] {rule_name}
+  {amount:.2f} {currency}/{period_label} → {converted:.2f} {base_currency}/{period_label} (rate {rate:.6f}, {fx_date}){extra}
 
 no_rules: "No rules yet."
 rules_list_header: "📌 Rules:"
@@ -58,8 +26,9 @@ rules_list_footer: |
   
   📋 Legend:
   ☀️  = Daily
+  📆 = Weekly
   📅 = Monthly
-  📆 = Yearly
+  📊 = Yearly
   
   Delete one with: /delrule <id>
 rules_list_item: "- ID {id}: [{category}] {name} — {amount:.2f} {currency} / {period}"

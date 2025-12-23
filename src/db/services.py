@@ -133,6 +133,8 @@ def compute_planned_monthly_from_rules(
 
         if period == "daily":
             monthly = amt * d
+        elif period == "weekly":
+            monthly = amt * 4.33  # ~4.33 weeks per month
         elif period == "monthly":
             monthly = amt
         else:  # yearly
@@ -306,7 +308,7 @@ async def add_rule_named_fx(
     category: str,
     period: str = "monthly",
 ):
-    """Add a rule with optional FX conversion. Period can be 'daily', 'monthly', or 'yearly'."""
+    """Add a rule with optional FX conversion. Period can be 'daily', 'weekly', 'monthly', or 'yearly'."""
     currency = currency.upper()
     if currency == BASE_CURRENCY:
         fx_date = today_key()

@@ -42,8 +42,8 @@ async def expenses_pagination_prev(update: Update, context: ContextTypes.DEFAULT
         await query.answer("Already at first page")
         return
     
-    # Format the page
-    page_text = _format_expenses_page(state)
+    # Format the page (not first page anymore)
+    page_text = _format_expenses_page(state, is_first_page=False)
     
     # Get pagination buttons
     buttons_data, footer = get_pagination_buttons(
@@ -96,8 +96,8 @@ async def expenses_pagination_next(update: Update, context: ContextTypes.DEFAULT
         await query.answer("Already at last page")
         return
     
-    # Format the page
-    page_text = _format_expenses_page(state)
+    # Format the page (not first page anymore)
+    page_text = _format_expenses_page(state, is_first_page=False)
     
     # Get pagination buttons
     buttons_data, footer = get_pagination_buttons(
@@ -237,13 +237,13 @@ async def rules_pagination_next(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
 
 
-def _format_expenses_page(state: PaginationState) -> str:
+def _format_expenses_page(state: PaginationState, is_first_page: bool = True) -> str:
     """
     Format a single page of expenses from pagination state.
     
     Args:
         state: PaginationState with all expenses
-        user_id: User ID (for reference)
+        is_first_page: Whether this is the first page (shows tips at end)
     
     Returns:
         Formatted page content
@@ -297,11 +297,13 @@ def _format_expenses_page(state: PaginationState) -> str:
                 f"[{eid:4d}] [{cat}] {name:<30} {orig:>8.2f} {cur} → {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
     
-    lines.append("")
-    lines.append(EXPENSES_MESSAGES["expenses_delete_tip"])
-    
-    if state.filter_category is None:
-        lines.append(EXPENSES_MESSAGES["expenses_filter_tip"])
+    # Show tips only on first page
+    if is_first_page:
+        lines.append("")
+        lines.append(EXPENSES_MESSAGES["expenses_delete_tip"])
+        
+        if state.filter_category is None:
+            lines.append(EXPENSES_MESSAGES["expenses_filter_tip"])
     
     return "\n".join(lines)
 

@@ -14,7 +14,7 @@ Key highlights:
 
 - 📊 Monthly overall budget tracking (auto-carried month to month)
 - 🗂️ Category-based expenses (Food, Transport, Subscriptions, etc.)
-- ⏱️ Daily, Monthly, and Yearly budget rules
+- ⏱️ Daily, Weekly, Monthly, and Yearly budget rules
 - 🧠 Automatic rule snapshots for historical months
 - 💱 Multi-currency expenses with automatic conversion to your **BASE_CURRENCY**
 - 🧾 List expenses with IDs (filter by month / category / limit)
@@ -64,6 +64,9 @@ Budget rules define your *planned* spending and are automatically aggregated per
 
 - **Daily rules**  
   Example: `Food 15 CHF/day` → multiplied by days in the month
+
+- **Weekly rules**  
+  Example: `Transport 25 CHF/week` → multiplied by ~4.33 weeks per month
 
 - **Monthly rules**  
   Example: `Subscriptions 35 CHF/month`
@@ -145,7 +148,7 @@ The bot uses an intelligent pagination system for displaying large lists of expe
 - **Automatic pagination**: Lists are split into pages of 10 items each
 - **Inline navigation**: Previous/Next buttons appear as clickable buttons in the message
 - **Smart totals**: Each page shows its sum, and a grand total of all pages when multiple pages exist
-- **First page legend**: Rules display a helpful legend on the first page only (☀️ Daily, 📅 Monthly, 📆 Yearly)
+- **First page legend**: Rules display a helpful legend on the first page only (☀️ Daily, 📆 Weekly, 📅 Monthly, 📊 Yearly)
 - **Persistent state**: Navigation state is stored per user, so you can navigate and come back later
 - **Stateless buttons**: Works entirely through inline button callbacks with no long-term session storage
 
@@ -195,14 +198,14 @@ budget-bot/
         └── commands/                # command-specific handlers
             ├── __init__.py
             ├── base.py              # base handler utilities & decorators
-            ├── setup.py             # /start and /help commands
-            ├── alerts.py            # /alerts command (alert configuration)
-            ├── expenses.py          # /add, /undo, /expenses, /delexpense commands
-            ├── export.py            # /export command (CSV export)
-            ├── report.py            # /status (with month), /categories commands
-            ├── reset.py             # /resetmonth, /reset commands
-            ├── rules.py             # /setbudget, /setdaily, /setmonthly, /setyearly, /delrule commands
-            └── messages/            # command response templates & error messages
+            ├── setup.py             # /start and /help
+            ├── alerts.py            # alert configuration
+            ├── expenses.py          # /add, /undo, /expenses, /delexpense
+            ├── export.py            # /export (CSV export)
+            ├── report.py            # /status (with month), /categories
+            ├── reset.py             # /resetmonth, /reset
+            ├── rules.py             # /setbudget, /setdaily, /setweekly, /setmonthly, /setyearly, /delrule 
+            └── messages/            # response templates & error messages
 ```
 
 ## Requirements
@@ -350,6 +353,7 @@ Most commands have shorthand aliases to make them easier to use:
 | `/help` | `/h` | Show help message |
 | `/setbudget` | `/sb` | Set monthly budget |
 | `/setdaily` | `/sd` | Add a daily budget rule |
+| `/setweekly` | `/sw` | Add a weekly budget rule |
 | `/setmonthly` | `/sm` | Add a monthly budget rule |
 | `/setyearly` | `/sy` | Add a yearly budget rule |
 | `/rules` | `/r` | View all budget rules |
@@ -384,6 +388,12 @@ Budget rules define your planned spending for each category. The bot will alert 
 /setdaily Food 15
 ```
 This means you plan to spend 15 CHF on Food per day. The bot automatically scales this to the number of days in the month.
+
+- **Weekly rule** (automatically scaled to the month)
+```bash
+/setweekly Transport 25
+```
+This means you plan to spend 25 CHF on Transport per week. The bot multiplies by ~4.33 weeks per month.
 
 - **Monthly rule**
 ```bash
@@ -429,8 +439,9 @@ Delete one with: /delrule <id>
 
 **Legend**:
 - ☀️  = Daily rule (scaled to month)
-- 📅 = Monthly rule
-- 📆 = Yearly rule (divided by 12)
+- 📆  = Weekly rule (4.33 weeks per month)
+- 📅  = Monthly rule
+- 📊  = Yearly rule (divided by 12)
 
 **Delete a rule by ID**
 ```bash
@@ -608,7 +619,7 @@ It will count as unplanned spend until you add a rule.
 ```
 
 ### How to Use Alerts
-1. Set up budget rules with `/setdaily`, `/setmonthly`, `/setyearly`
+1. Set up budget rules with `/setdaily`, `/setweekly`, `/setmonthly`, `/setyearly`
 2. Set an overall monthly budget with `/setbudget`
 3. Add expenses as usual - the bot will automatically notify you if you exceed any limits
 4. Use alerts to stay aware of your spending patterns

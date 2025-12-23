@@ -5,6 +5,7 @@ start_message: |
   *Setup:*
   /setbudget `/sb` — _Set monthly budget_
   /setdaily `/sd` — _Add daily spending rule_
+  /setweekly `/sw` — _Add weekly spending rule_
   /setmonthly `/sm` — _Add monthly spending rule_
   /setyearly `/sy` — _Add yearly spending rule_
   /rules `/r` — _List all rules_
