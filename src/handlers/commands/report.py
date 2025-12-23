@@ -22,7 +22,7 @@ TOP_N = 8
 @dataclass
 class BudgetMetrics:
     """Container for calculated budget metrics."""
-    
+
     overall_budget: float
     planned_total: float
     spent_total: float
@@ -30,7 +30,7 @@ class BudgetMetrics:
     remaining_overall: float
     unplanned_spent: float
     overspend_by_cat: Dict[str, float]
-    
+
     @property
     def remaining_tag(self) -> str:
         """Get the emoji tag for remaining balance."""
@@ -39,7 +39,7 @@ class BudgetMetrics:
 
 class BudgetReport:
     """Shared utility class for generating budget reports."""
-    
+
     def __init__(
         self,
         planned_by_cat: Dict[str, float],
@@ -52,12 +52,12 @@ class BudgetReport:
         self.overall_budget = overall_budget
         self.currency = currency
         self.all_cats = set(planned_by_cat.keys()) | set(spent_by_cat.keys())
-    
+
     def calculate_metrics(self) -> BudgetMetrics:
         """Calculate all budget metrics (overspend, remaining, etc.)."""
         planned_total = sum(self.planned_by_cat.values())
         spent_total = sum(self.spent_by_cat.values())
-        
+
         # Calculate overspend by category
         overspend_by_cat = {}
         overspend_total = 0.0
@@ -67,7 +67,7 @@ class BudgetReport:
             over = max(0.0, s - p)
             overspend_by_cat[c] = over
             overspend_total += over
-        
+
         # Calculate remaining and unplanned
         remaining_overall = self.overall_budget - planned_total - overspend_total
         unplanned_spent = sum(
@@ -75,7 +75,7 @@ class BudgetReport:
             for c in self.spent_by_cat.keys()
             if self.planned_by_cat.get(c, 0.0) == 0.0
         )
-        
+
         return BudgetMetrics(
             overall_budget=self.overall_budget,
             planned_total=planned_total,
@@ -85,56 +85,71 @@ class BudgetReport:
             unplanned_spent=unplanned_spent,
             overspend_by_cat=overspend_by_cat,
         )
-    
+
     def sort_categories(self) -> list[str]:
         """Sort categories by importance: overspend desc, spent desc, name asc."""
         metrics = self.calculate_metrics()
-        
+
         def sort_key(c: str):
             return (
                 -metrics.overspend_by_cat.get(c, 0.0),
                 -self.spent_by_cat.get(c, 0.0),
                 c.lower(),
             )
-        
+
         return sorted(self.all_cats, key=sort_key)
-    
-    def format_category_line(self, category: str, metrics: BudgetMetrics, show_unplanned_label: bool = False) -> str:
+
+    def format_category_line(
+        self, category: str, metrics: BudgetMetrics, show_unplanned_label: bool = False
+    ) -> str:
         """Format a single category as a report line."""
         p = self.planned_by_cat.get(category, 0.0)
         s = self.spent_by_cat.get(category, 0.0)
         r = p - s
-        
+
         label = category
         if show_unplanned_label and p == 0.0 and s > 0.0:
             label = f"{category} (unplanned)"
-        
+
         r_tag = "✅" if r >= 0 else "⚠️"
         over = metrics.overspend_by_cat.get(category, 0.0)
         over_str = f"  (+{over:.2f} over)" if over > 0 else ""
-        
-        return f"- {label}: {p:.2f} | {s:.2f} | {r_tag} {r:.2f} {self.currency}{over_str}"
-    
+
+        return (
+            f"- {label}: {p:.2f} | {s:.2f} | {r_tag} {r:.2f} {self.currency}{over_str}"
+        )
+
     def get_category_summary_lines(
-        self, cats_to_show: list[str], metrics: BudgetMetrics, separate_planned: bool = True
+        self,
+        cats_to_show: list[str],
+        metrics: BudgetMetrics,
+        separate_planned: bool = True,
     ) -> list[str]:
         """Generate category summary lines, optionally separating planned/unplanned."""
         lines = []
-        
+
         if not cats_to_show:
-            lines.append(MESSAGES["status_no_categories"] if separate_planned else MESSAGES["month_no_categories"])
+            lines.append(
+                MESSAGES["status_no_categories"]
+                if separate_planned
+                else MESSAGES["month_no_categories"]
+            )
             return lines
-        
+
         if separate_planned:
             # Separate planned and unplanned
-            planned_cats = [c for c in cats_to_show if self.planned_by_cat.get(c, 0.0) > 0.0]
-            unplanned_cats = [c for c in cats_to_show if self.planned_by_cat.get(c, 0.0) == 0.0]
-            
+            planned_cats = [
+                c for c in cats_to_show if self.planned_by_cat.get(c, 0.0) > 0.0
+            ]
+            unplanned_cats = [
+                c for c in cats_to_show if self.planned_by_cat.get(c, 0.0) == 0.0
+            ]
+
             if planned_cats:
                 lines.append(MESSAGES["status_by_category_planned"])
                 for c in planned_cats:
                     lines.append(self.format_category_line(c, metrics))
-            
+
             if unplanned_cats:
                 if planned_cats:
                     lines.append("")
@@ -146,15 +161,17 @@ class BudgetReport:
             # Show all together (for month report)
             lines.append(MESSAGES["month_by_category"])
             for c in cats_to_show:
-                lines.append(self.format_category_line(c, metrics, show_unplanned_label=True))
-        
+                lines.append(
+                    self.format_category_line(c, metrics, show_unplanned_label=True)
+                )
+
         return lines
 
 
 @rollover_silent
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    
+
     # args support quotes and smart quotes (via textparse)
     args = get_args(update)
 
@@ -165,24 +182,24 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # - /status YYYY-MM              -> compact historical month
     # - /status YYYY-MM full         -> full historical month
     # - /status YYYY-MM <category>   -> category detail for historical month
-    
+
     # Extract month from args if provided (YYYY-MM format)
     m = month_key()  # default to current month
     want_full = False
     filtered_args = list(args)
-    
+
     if args and len(args[0]) == 7 and args[0][4] == "-":
         # First arg is a month (YYYY-MM format)
         m = args[0].strip()
         filtered_args = args[1:]
-    
+
     # Check for "full" or "all" in remaining args
     want_full = any(a.lower() in ("full", "all") for a in filtered_args)
     filtered_args = [a for a in filtered_args if a.lower() not in ("full", "all")]
 
     # For historical months, use get_month_budget; for current, use ensure_month_budget
-    is_current_month = (m == month_key())
-    
+    is_current_month = m == month_key()
+
     if is_current_month:
         overall_budget, carried, carried_from = ensure_month_budget(user_id, m)
     else:
@@ -195,20 +212,24 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if is_current_month:
             # Current month: show missing budget message and rules
             lines = [MESSAGES["no_budget_set"].format(month=m), ""]
-            
+
             # Get and show current rules
             planned_by_cat, _ = compute_planned_monthly_from_rules(user_id, m)
             if planned_by_cat:
                 lines.append("Current rules:")
                 for cat in sorted(planned_by_cat.keys()):
-                    lines.append(f"  • {cat}: {planned_by_cat[cat]:.2f} {BASE_CURRENCY}")
+                    lines.append(
+                        f"  • {cat}: {planned_by_cat[cat]:.2f} {BASE_CURRENCY}"
+                    )
             else:
                 lines.append("(no rules configured yet)")
-            
+
             return await reply(update, context, "\n".join(lines), parse_mode="Markdown")
         else:
             # Historical month: show "data not recorded" message
-            return await reply(update, context, MESSAGES["historical_month_no_data"].format(month=m))
+            return await reply(
+                update, context, MESSAGES["historical_month_no_data"].format(month=m)
+            )
 
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
     spent_by_cat, spent_total = compute_spent_this_month(user_id, m)
@@ -316,7 +337,9 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         lines.append("")
 
-    lines.extend(report.get_category_summary_lines(show_cats, metrics, separate_planned=True))
+    lines.extend(
+        report.get_category_summary_lines(show_cats, metrics, separate_planned=True)
+    )
 
     # small footer hint
     if not want_full:

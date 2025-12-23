@@ -7,35 +7,37 @@ from config import DB_PATH
 class DatabasePool:
     """
     Simple connection pool for SQLite.
-    
+
     Since SQLite has limited concurrent write support, we use thread-local
     storage to ensure each thread/coroutine gets its own connection.
     This avoids "database is locked" errors and improves performance.
     """
-    
-    def __init__(self, db_path: str, timeout: float = 30.0, check_same_thread: bool = False):
+
+    def __init__(
+        self, db_path: str, timeout: float = 30.0, check_same_thread: bool = False
+    ):
         self.db_path = db_path
         self.timeout = timeout
         self.check_same_thread = check_same_thread
         self._local = threading.local()
-    
+
     def get_connection(self) -> sqlite3.Connection:
         """Get or create a connection for the current thread."""
-        if not hasattr(self._local, 'connection') or self._local.connection is None:
+        if not hasattr(self._local, "connection") or self._local.connection is None:
             self._local.connection = sqlite3.connect(
                 self.db_path,
                 timeout=self.timeout,
-                check_same_thread=self.check_same_thread
+                check_same_thread=self.check_same_thread,
             )
             self._local.connection.row_factory = sqlite3.Row
         return self._local.connection
-    
+
     def close_connection(self) -> None:
         """Close the connection for the current thread."""
-        if hasattr(self._local, 'connection') and self._local.connection is not None:
+        if hasattr(self._local, "connection") and self._local.connection is not None:
             self._local.connection.close()
             self._local.connection = None
-    
+
     @contextmanager
     def get_db(self):
         """Context manager for getting a database connection."""
@@ -45,7 +47,7 @@ class DatabasePool:
         except Exception:
             conn.rollback()
             raise
-    
+
     def shutdown(self) -> None:
         """Close all connections (for cleanup on exit)."""
         self.close_connection()

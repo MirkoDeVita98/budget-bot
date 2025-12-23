@@ -50,7 +50,13 @@ async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = validate_budget(amount)
     except BudgetValidationError as e:
-        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("parse_amount_error", "Invalid budget")))
+        return await reply(
+            update,
+            context,
+            ERROR_MESSAGES.get(
+                e.message, MESSAGES.get("parse_amount_error", "Invalid budget")
+            ),
+        )
 
     m = month_key()
     upsert_budget(user_id, m, amount)
@@ -112,7 +118,9 @@ async def _handle_rule_setter(
             amt = validate_amount(amt, field_name="amount")
             category = validate_category(category)
         except (AmountValidationError, CategoryValidationError) as e:
-            return await reply(update, context, ERROR_MESSAGES.get(e.message, "Invalid input"))
+            return await reply(
+                update, context, ERROR_MESSAGES.get(e.message, "Invalid input")
+            )
 
         add_rule(user_id, category, f"{category} {period}", period, amt)
         return await reply(
@@ -132,7 +140,7 @@ async def _handle_rule_setter(
     # Named mode: first arg is category, rest is name amount [currency]
     category = args[0].strip()
     currency = BASE_CURRENCY
-    
+
     # Check if second-to-last arg is currency
     if len(args) >= 4 and looks_like_currency(args[-1]):
         currency = args[-1].strip().upper()
@@ -160,7 +168,9 @@ async def _handle_rule_setter(
         if rule_name != "(no name)":
             rule_name = validate_name(rule_name, field_name="name")
     except (AmountValidationError, CategoryValidationError, NameValidationError) as e:
-        return await reply(update, context, ERROR_MESSAGES.get(e.message, "Invalid input"))
+        return await reply(
+            update, context, ERROR_MESSAGES.get(e.message, "Invalid input")
+        )
 
     fx_date, rate, chf_amount = await add_rule_named_fx(
         user_id, rule_name, amount, currency, category, period
@@ -279,16 +289,12 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     from utils.pagination import PaginationState
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
     from utils.pagination import get_pagination_buttons
-    
-    state = PaginationState(
-        items=rows,
-        items_per_page=10,
-        callback_prefix="rules"
-    )
-    
+
+    state = PaginationState(items=rows, items_per_page=10, callback_prefix="rules")
+
     # Format first page with grouped display
     page_text = _format_rules_page(state)
-    
+
     # Add pagination info if needed
     if state.total_pages > 1:
         buttons_data, footer = get_pagination_buttons(
@@ -299,7 +305,7 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
             has_next=state.has_next,
         )
         page_text += f"\n\n{footer}"
-        
+
         # Build keyboard
         keyboard = []
         if buttons_data:
@@ -307,12 +313,12 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for label, callback in buttons_data:
                 button_row.append(InlineKeyboardButton(label, callback_data=callback))
             keyboard.append(button_row)
-        
+
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-        
+
         # Store pagination state
         context.user_data["rules_pagination"] = state.to_dict()
-        
+
         await reply(update, context, page_text, reply_markup=reply_markup)
     else:
         # No pagination needed
@@ -338,7 +344,3 @@ async def delrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context,
         MESSAGES["delrule_success"] if ok else MESSAGES["delrule_failure"],
     )
-
-
-
-

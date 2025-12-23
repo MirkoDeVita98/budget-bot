@@ -7,7 +7,7 @@ from config import BOT_TOKEN
 from db.db import init_db, shutdown_db_pool
 from handlers.handlers_config import create_handlers_config
 from handlers.pagination_callbacks import (
-    expenses_pagination_prev, 
+    expenses_pagination_prev,
     expenses_pagination_next,
     rules_pagination_prev,
     rules_pagination_next,
@@ -16,8 +16,7 @@ from handlers.command_menu import setup_command_menu
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -35,15 +34,15 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Exception while handling an update:",
         exc_info=context.error,
     )
-    
+
     # Try to send an error message to the user
     try:
         if update and update.effective_chat:
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text="❌ An error occurred while processing your request. "
-                     "The issue has been logged.\n\n"
-                     "Please try again in a moment.",
+                "The issue has been logged.\n\n"
+                "Please try again in a moment.",
             )
     except Exception as e:
         logger.error(f"Failed to send error message to user: {e}")
@@ -69,19 +68,27 @@ def main():
 
     # Load and register all handlers from config
     handlers_config = create_handlers_config()
-    
+
     for command_config in handlers_config.get_all_commands():
         # Register primary command
-        app.add_handler(CommandHandler(command_config.primary_command, command_config.handler_function))
-        
+        app.add_handler(
+            CommandHandler(
+                command_config.primary_command, command_config.handler_function
+            )
+        )
+
         # Register aliases
         if command_config.aliases:
             for alias in command_config.aliases:
                 app.add_handler(CommandHandler(alias, command_config.handler_function))
-    
+
     # Register pagination callback handlers
-    app.add_handler(CallbackQueryHandler(expenses_pagination_prev, pattern="^expenses_prev$"))
-    app.add_handler(CallbackQueryHandler(expenses_pagination_next, pattern="^expenses_next$"))
+    app.add_handler(
+        CallbackQueryHandler(expenses_pagination_prev, pattern="^expenses_prev$")
+    )
+    app.add_handler(
+        CallbackQueryHandler(expenses_pagination_next, pattern="^expenses_next$")
+    )
     app.add_handler(CallbackQueryHandler(rules_pagination_prev, pattern="^rules_prev$"))
     app.add_handler(CallbackQueryHandler(rules_pagination_next, pattern="^rules_next$"))
 

@@ -12,7 +12,11 @@ from db.services import (
     delete_expense_by_id,
 )
 from ..pagination_callbacks import _format_expenses_page
-from utils.fx import InvalidCurrencyError, CurrencyFormatError, CurrencyNotSupportedError
+from utils.fx import (
+    InvalidCurrencyError,
+    CurrencyFormatError,
+    CurrencyNotSupportedError,
+)
 from .alerts import check_alerts_after_add
 from utils.validators import (
     validate_amount,
@@ -45,11 +49,11 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /add <name> <amount> [currency]
     /add <category> <name> <amount> [currency]
-    
+
     Examples (no category - uses "Uncategorized"):
       /add Groceries 62.40
       /add "Taxi to airport" 20 EUR
-      
+
     Examples (with category):
       /add Food Groceries 62.40
       /add "Food & Drinks" "Taxi to airport" 20 EUR
@@ -62,16 +66,16 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await reply(update, context, MESSAGES["usage_add"])
 
     m = month_key()
-    
+
     # Try to parse as: name amount [currency]
     # If it looks like (name, amount), assume no category
     # Otherwise try (category, name, amount [currency])
-    
+
     category = None
     name = None
     amount = None
     currency = BASE_CURRENCY
-    
+
     # Check if we have 2 args: likely "name amount" with no category
     if len(args) == 2:
         try:
@@ -81,7 +85,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             # Not a valid amount, might be something else
             pass
-    
+
     # Check if we have 3 args: could be "name amount currency" OR "category name amount"
     if category is None and len(args) == 3:
         # Try to parse as: name amount currency
@@ -94,7 +98,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 currency = currency_candidate
         except Exception:
             pass
-        
+
         # If that didn't work, try: category name amount
         if category is None:
             try:
@@ -104,7 +108,7 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 currency = BASE_CURRENCY
             except Exception:
                 pass
-    
+
     # Check if we have 4+ args: category name amount [currency]
     if category is None and len(args) >= 4:
         try:
@@ -127,11 +131,11 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             category = args[0].strip()
             name = " ".join(args[1:-2]).strip()
-    
+
     # Final validation
     if category is None or name is None or amount is None:
         return await reply(update, context, MESSAGES["usage_add"])
-    
+
     name = name or "(no name)"
 
     # Validate inputs before inserting
@@ -141,11 +145,29 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if name != "(no name)":
             name = validate_name(name, field_name="name")
     except AmountValidationError as e:
-        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("amount_parse_error", "Invalid amount")))
+        return await reply(
+            update,
+            context,
+            ERROR_MESSAGES.get(
+                e.message, MESSAGES.get("amount_parse_error", "Invalid amount")
+            ),
+        )
     except CategoryValidationError as e:
-        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("invalid_input", "Invalid category")))
+        return await reply(
+            update,
+            context,
+            ERROR_MESSAGES.get(
+                e.message, MESSAGES.get("invalid_input", "Invalid category")
+            ),
+        )
     except NameValidationError as e:
-        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("invalid_input", "Invalid name")))
+        return await reply(
+            update,
+            context,
+            ERROR_MESSAGES.get(
+                e.message, MESSAGES.get("invalid_input", "Invalid name")
+            ),
+        )
 
     # BEFORE insert: baseline for alert crossings
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)
@@ -257,9 +279,9 @@ async def undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /expenses [YYYY-MM] ["Category Name"]
-    
+
     Shows expenses with pagination (Previous/Next buttons).
-    
+
     Examples:
       /expenses               # Current month
       /expenses 2025-12       # Specific month
@@ -316,9 +338,10 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Format and send first page with buttons
     page_text = _format_expenses_page(state)
-    
+
     # Build pagination buttons
     from utils.pagination import get_pagination_buttons
+
     buttons_data, footer = get_pagination_buttons(
         prefix="expenses",
         current_page=state.current_page,
@@ -327,7 +350,7 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
         has_next=state.has_next,
     )
     page_text += f"\n\n{footer}"
-    
+
     # Build inline keyboard
     keyboard = []
     if buttons_data:
@@ -335,12 +358,12 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for label, callback in buttons_data:
             button_row.append(InlineKeyboardButton(label, callback_data=callback))
         keyboard.append(button_row)
-    
+
     reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-    
+
     # Send message with pagination
     msg = await reply(update, context, page_text, reply_markup=reply_markup)
-    
+
     # Store pagination state in context for callback handlers
     context.user_data["expenses_pagination"] = state.to_dict()
 

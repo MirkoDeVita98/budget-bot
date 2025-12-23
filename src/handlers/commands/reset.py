@@ -1,5 +1,9 @@
 from .base import *
-from db.services import reset_month_expenses, delete_budget_for_month, reset_all_user_data
+from db.services import (
+    reset_month_expenses,
+    delete_budget_for_month,
+    reset_all_user_data,
+)
 
 
 # Load messages from YAML file using relative path

@@ -14,11 +14,11 @@ from telegram.ext import ContextTypes
 @dataclass
 class CommandConfig:
     """Configuration for a single command handler."""
-    
+
     primary_command: str
     handler_function: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]]
     aliases: list[str] | None = None
-    
+
     def get_all_commands(self) -> list[str]:
         """Return list of all command names (primary + aliases)."""
         commands = [self.primary_command]
@@ -29,19 +29,21 @@ class CommandConfig:
 
 class HandlersRegistry:
     """Registry to manage all command handlers."""
-    
+
     def __init__(self):
         self.commands: list[CommandConfig] = []
-    
+
     def register(
         self,
         primary_command: str,
-        handler_function: Callable[[Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]],
+        handler_function: Callable[
+            [Update, ContextTypes.DEFAULT_TYPE], Awaitable[None]
+        ],
         aliases: list[str] | None = None,
     ) -> None:
         """
         Register a new command handler.
-        
+
         Args:
             primary_command: The main command name (without /)
             handler_function: The async function to handle the command
@@ -53,11 +55,11 @@ class HandlersRegistry:
             aliases=aliases,
         )
         self.commands.append(config)
-    
+
     def get_all_commands(self) -> list[CommandConfig]:
         """Get all registered command configurations."""
         return self.commands
-    
+
     def get_command(self, command_name: str) -> CommandConfig | None:
         """Get a specific command configuration by name."""
         for config in self.commands:
@@ -71,7 +73,7 @@ class HandlersRegistry:
 def create_handlers_config() -> HandlersRegistry:
     """
     Create and return the handlers configuration.
-    
+
     This function imports all handler functions and registers them.
     Modify this function to add, remove, or reconfigure handlers.
     """
@@ -96,13 +98,13 @@ def create_handlers_config() -> HandlersRegistry:
         resetmonth,
         resetall,
     )
-    
+
     registry = HandlersRegistry()
-    
+
     # Setup commands
     registry.register("start", start)
     registry.register("help", help_command, aliases=["h"])
-    
+
     # Budget & Rules commands
     registry.register("setbudget", setbudget, aliases=["sb"])
     registry.register("setdaily", setdaily, aliases=["sd"])
@@ -111,23 +113,23 @@ def create_handlers_config() -> HandlersRegistry:
     registry.register("setyearly", setyearly, aliases=["sy"])
     registry.register("rules", rules, aliases=["r"])
     registry.register("delrule", delrule, aliases=["dr"])
-    
+
     # Status & Report commands
     registry.register("status", status, aliases=["s", "m"])
     registry.register("categories", categories, aliases=["c"])
-    
+
     # Expenses commands
     registry.register("add", add, aliases=["a"])
     registry.register("undo", undo, aliases=["u"])
     registry.register("expenses", expenses, aliases=["e"])
     registry.register("delexpense", delexpense, aliases=["d"])
-    
+
     # Export and backup commands
     registry.register("export", export)
     registry.register("backupdb", backupdb)
-    
+
     # Reset commands
     registry.register("resetmonth", resetmonth, aliases=["rm"])
     registry.register("resetall", resetall)
-    
+
     return registry

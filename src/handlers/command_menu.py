@@ -46,14 +46,14 @@ def _get_command_descriptions() -> dict[str, str]:
 async def setup_command_menu(app: Application) -> None:
     """
     Register all bot commands with Telegram using setMyCommands.
-    
+
     This displays the native command menu when users type '/' in the chat.
     Should be called when the bot starts up.
     """
     try:
         handlers_config = create_handlers_config()
         descriptions = _get_command_descriptions()
-        
+
         # Build list of BotCommand objects
         commands = []
         for config in handlers_config.get_all_commands():
@@ -63,18 +63,17 @@ async def setup_command_menu(app: Application) -> None:
             if description:
                 # Remove emoji for display (Telegram shows them, but keep them short)
                 description = description[:100]  # Telegram max is 256 but keep shorter
-            
+
             commands.append(
                 BotCommand(
                     command=config.primary_command,
-                    description=description or "Execute this command"
+                    description=description or "Execute this command",
                 )
             )
-        
+
         # Set commands via Telegram API
         await app.bot.set_my_commands(commands)
         logger.info(f"✅ Registered {len(commands)} commands with Telegram")
-        
+
     except Exception as e:
         logger.error(f"❌ Failed to setup command menu: {e}")
-
