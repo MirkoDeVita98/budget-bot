@@ -26,8 +26,11 @@ from validators import (
 # Load messages from YAML file using relative path
 _current_dir = Path(__file__).parent
 _messages_path = _current_dir / "messages" / "expenses.yaml"
+_error_messages_path = _current_dir / "messages" / "errors.yaml"
 with open(_messages_path, "r") as file:
     MESSAGES = yaml.safe_load(file)
+with open(_error_messages_path, "r") as file:
+    ERROR_MESSAGES = yaml.safe_load(file)
 
 
 def _is_month_token(t: str) -> bool:

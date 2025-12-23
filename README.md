@@ -166,7 +166,6 @@ budget-bot/
     └── handlers/         # Telegram command handlers
         ├── __init__.py
         ├── base.py       # base handler class & utilities
-        ├── errors.py     # custom exceptions & error handling
         ├── handlers_config.py  # centralized command registration
         ├── setup.py      # /start and /help commands
         ├── report.py     # /status (with month), /categories commands
@@ -304,14 +303,21 @@ screen -r budget-bot
 
 ## Error Handling
 
-The bot includes comprehensive error handling:
+The bot includes comprehensive input validation and error handling:
 
-- **Custom Exceptions**: Organized error types (input, business logic, external services)
-- **User-Friendly Messages**: Clear, actionable error messages sent to Telegram
-- **Logging System**: Errors logged with appropriate severity levels
-- **Global Error Handler**: Catches unhandled exceptions at the application level
+- **Input Validation**: All user inputs (amounts, categories, names) are validated with specific constraints before processing
+- **Validation Errors**: When validation fails, users receive specific, actionable error messages from `handlers/messages/errors.yaml`
+- **Global Error Handler**: Unhandled exceptions are caught at the application level in `main.py` and logged with full traceback
+- **User-Friendly Messages**: Clear error messages sent to Telegram instead of technical stack traces
+- **Logging System**: Errors logged at appropriate severity levels (INFO for app, WARNING for libraries)
 
-See `handlers/errors.py` and `handlers/messages/errors.yaml` for details.
+**Error Handling Flow:**
+1. Handler receives command and validates input using `validators.py`
+2. If validation fails → catch exception → send specific error message to user
+3. If validation passes → execute business logic
+4. If unhandled exception occurs → global error handler logs it and sends generic message to user
+
+See `validators.py` for validation logic and `handlers/messages/errors.yaml` for error messages.
 
 ## Usage Guide
 

@@ -8,9 +8,6 @@ Provides validators for:
 - Expense names
 """
 
-from typing import Tuple
-
-
 # Validation constraints
 AMOUNT_MIN = 0.01  # Minimum allowed amount
 AMOUNT_MAX = 999_999.99  # Maximum allowed amount (reasonable limit)
