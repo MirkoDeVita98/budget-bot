@@ -246,22 +246,8 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
         callback_prefix="rules"
     )
     
-    # Format first page
-    page_items = state.current_page_items
-    lines = [MESSAGES["rules_list_header"].format(currency=BASE_CURRENCY)]
-    for r in page_items:
-        lines.append(
-            MESSAGES["rules_list_item"].format(
-                id=r["id"],
-                category=r["category"],
-                name=r["name"],
-                amount=float(r["amount"]),
-                currency=BASE_CURRENCY,
-                period=r["period"],
-            )
-        )
-    lines.append(MESSAGES["rules_list_footer"])
-    page_text = "\n".join(lines)
+    # Format first page with grouped display
+    page_text = _format_rules_page_grouped(state, BASE_CURRENCY)
     
     # Add pagination info if needed
     if state.total_pages > 1:
@@ -312,3 +298,45 @@ async def delrule(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context,
         MESSAGES["delrule_success"] if ok else MESSAGES["delrule_failure"],
     )
+
+
+def _format_rules_page_grouped(state, currency: str) -> str:
+    """
+    Format a page of rules grouped by category with category totals.
+    
+    Args:
+        state: PaginationState with all rules
+        currency: Currency to display
+    
+    Returns:
+        Formatted page content with rules grouped by category
+    """
+    page_items = state.current_page_items
+    
+    # Group rules by category
+    categories = {}
+    for r in page_items:
+        cat = r["category"]
+        if cat not in categories:
+            categories[cat] = {"total": 0, "rules": []}
+        categories[cat]["rules"].append(r)
+        categories[cat]["total"] += float(r["amount"])
+    
+    # Build output
+    lines = [MESSAGES["rules_list_header"].format(currency=currency), ""]
+    
+    for category in sorted(categories.keys()):
+        cat_data = categories[category]
+        lines.append(f"📁 {category}")
+        lines.append(f"   Total: {cat_data['total']:.2f} {currency}")
+        
+        for r in cat_data["rules"]:
+            lines.append(
+                f"   - ID {r['id']}: {r['name']} — {float(r['amount']):.2f} {currency} / {r['period']}"
+            )
+        lines.append("")
+    
+    lines.append(MESSAGES["rules_list_footer"])
+    
+    return "\n".join(lines)
+

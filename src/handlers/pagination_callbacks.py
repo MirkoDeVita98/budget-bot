@@ -324,28 +324,39 @@ def _format_expenses_page(state: PaginationState, user_id: int) -> str:
 
 def _format_rules_page(state: PaginationState) -> str:
     """
-    Format a single page of rules from pagination state.
+    Format a single page of rules from pagination state, grouped by category.
     
     Args:
         state: PaginationState with all rules
     
     Returns:
-        Formatted page content
+        Formatted page content with rules grouped by category
     """
     rows = state.current_page_items
     
-    lines = [RULES_MESSAGES["rules_list_header"].format(currency=BASE_CURRENCY)]
+    # Group rules by category
+    categories = {}
     for r in rows:
-        lines.append(
-            RULES_MESSAGES["rules_list_item"].format(
-                id=r["id"],
-                category=r["category"],
-                name=r["name"],
-                amount=float(r["amount"]),
-                currency=BASE_CURRENCY,
-                period=r["period"],
+        cat = r["category"]
+        if cat not in categories:
+            categories[cat] = {"total": 0, "rules": []}
+        categories[cat]["rules"].append(r)
+        categories[cat]["total"] += float(r["amount"])
+    
+    # Build output
+    lines = [RULES_MESSAGES["rules_list_header"].format(currency=BASE_CURRENCY), ""]
+    
+    for category in sorted(categories.keys()):
+        cat_data = categories[category]
+        lines.append(f"📁 {category}")
+        lines.append(f"   Total: {cat_data['total']:.2f} {BASE_CURRENCY}")
+        
+        for r in cat_data["rules"]:
+            lines.append(
+                f"   - ID {r['id']}: {r['name']} — {float(r['amount']):.2f} {BASE_CURRENCY} / {r['period']}"
             )
-        )
+        lines.append("")
+    
     lines.append(RULES_MESSAGES["rules_list_footer"])
     
     return "\n".join(lines)

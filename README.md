@@ -389,7 +389,26 @@ You can specify currency for any rule; it will be converted to BASE_CURRENCY.
 /rules
 ```
 
-The rules list supports pagination (10 rules per page) with Previous/Next navigation buttons for easy browsing through many rules.
+Rules are organized by category with totals per category, making it easy to see your planned spending structure. Supports pagination (10 rules per page) with Previous/Next navigation buttons.
+
+**Example output:**
+```
+📌 Rules (stored in CHF):
+
+📁 Food & Drinks
+   Total: 65.00 CHF
+   - ID 1: Daily food — 15.00 CHF / daily
+   - ID 2: Groceries — 50.00 CHF / monthly
+
+📁 Subscriptions
+   Total: 16.99 CHF
+   - ID 5: Netflix — 16.99 CHF / monthly
+
+📁 Transport
+   Total: 300.00 CHF
+   - ID 3: Public transport — 100.00 CHF / monthly
+   - ID 4: Car fuel — 200.00 CHF / monthly
+```
 
 - **Delete a rule by ID**
 ```bash
