@@ -1,5 +1,5 @@
-from ..base import *
-from src.db.services import (
+from .base import *
+from db.services import (
     add_rule,
     delete_rule,
     list_rules,
@@ -11,7 +11,7 @@ from src.db.services import (
 )
 
 from ..pagination_callbacks import _format_rules_page
-from src.utils.validators import (
+from utils.validators import (
     validate_budget,
     validate_amount,
     validate_category,
@@ -238,9 +238,9 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await reply(update, context, MESSAGES["no_rules"])
 
     # Setup pagination
-    from src.utils.pagination import PaginationState
+    from utils.pagination import PaginationState
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-    from src.utils.pagination import get_pagination_buttons
+    from utils.pagination import get_pagination_buttons
     
     state = PaginationState(
         items=rows,

@@ -8,7 +8,7 @@ which displays them in the native command UI when users type '/'.
 import logging
 from telegram import Update, BotCommand
 from telegram.ext import ContextTypes, Application
-from handlers.base import reply
+
 from handlers.handlers_config import create_handlers_config
 
 logger = logging.getLogger(__name__)

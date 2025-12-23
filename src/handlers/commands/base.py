@@ -3,8 +3,8 @@ from functools import wraps
 from pathlib import Path
 from telegram import InputFile, Update
 from telegram.ext import ContextTypes
-from services import ensure_rollover_snapshot, month_key
-from textparse import parse_quoted_args
+from db.services import ensure_rollover_snapshot, month_key
+from utils.textparse import parse_quoted_args
 from config import BASE_CURRENCY, DB_PATH
 import yaml
 

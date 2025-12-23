@@ -161,49 +161,48 @@ The bot uses an intelligent pagination system for displaying large lists of expe
 
 ```text
 budget-bot/
-├── .env                  # secrets (NOT committed to git)
-├── .env.example          # environment variable template
-├── .gitignore            # git ignore rules
-├── LICENSE               # MIT License
-├── README.md             # this file
-├── requirements.txt      # Python dependencies
-├── main.py               # application entry point
-├── budget.db             # SQLite database (created at runtime)
+├── .env                    # secrets (NOT committed to git)
+├── .env.example            # environment variable template
+├── .gitignore              # git ignore rules
+├── LICENSE                 # MIT License
+├── README.md               # this file
+├── requirements.txt        # Python dependencies
 ├── assets/
-│   └── expense_bot_icon.png  # bot icon
+│   └── expense_bot_icon.png    # bot icon
 └── src/
     ├── __init__.py
-    ├── config.py         # configuration & environment variables
-    ├── db.py             # database schema & migrations
-    ├── fx.py             # FX API integration & currency conversion
-    ├── services.py       # business logic (budgets, rules, expenses)
-    ├── alerts.py         # alert system for budget notifications
-    ├── textparse.py      # text parsing utilities
-    ├── export_csv.py     # CSV export functionality
-    ├── validators.py     # input validation & sanitization
-    ├── pagination.py     # pagination system for lists (expenses, rules)
-    ├── main.py           # bot entry point (in src/)
-    └── handlers/         # Telegram command handlers
+    ├── main.py             # bot entry point & Telegram bot setup
+    ├── config.py           # configuration & environment variables
+    ├── budget.db           # SQLite database (created at runtime)
+    ├── db/                 # database module
+    │   ├── __init__.py
+    │   ├── db.py           # database schema & migrations
+    │   └── services.py     # database query & operation wrappers
+    ├── utils/              # utility modules
+    │   ├── __init__.py
+    │   ├── export_csv.py   # CSV export functionality
+    │   ├── fx.py           # FX API integration & currency conversion
+    │   ├── pagination.py   # pagination system for lists (expenses, rules)
+    │   ├── textparse.py    # text parsing utilities
+    │   └── validators.py   # input validation & sanitization
+    └── handlers/           # Telegram command handlers & callbacks
         ├── __init__.py
-        ├── base.py       # base handler utilities & decorators
-        ├── command_menu.py   # bot command menu setup
-        ├── handlers_config.py  # centralized command registration
+        ├── handlers_config.py       # centralized command registration
+        ├── command_menu.py          # bot command menu setup
+        ├── expenses.py              # expense inline query handlers
         ├── pagination_callbacks.py  # inline button handlers for pagination
-        ├── setup.py      # /start and /help commands
-        ├── report.py     # /status (with month), /categories commands
-        ├── rules.py      # budget rules management (/setbudget, /setdaily, /setmonthly, /setyearly, etc.)
-        ├── expenses.py   # expense management (/add, /undo, /expenses, etc.)
-        ├── export.py     # /export and /backupdb commands
-        ├── reset.py      # /resetmonth and /resetall commands
-        └── messages/     # YAML message templates
-            ├── base.yaml
-            ├── errors.yaml
-            ├── setup.yaml
-            ├── report.yaml
-            ├── rules.yaml
-            ├── expenses.yaml
-            ├── export.yaml
-            └── reset.yaml
+        ├── rules.py                 # rules inline query handlers
+        └── commands/                # command-specific handlers
+            ├── __init__.py
+            ├── base.py              # base handler utilities & decorators
+            ├── setup.py             # /start and /help commands
+            ├── alerts.py            # /alerts command (alert configuration)
+            ├── expenses.py          # /add, /undo, /expenses, /delexpense commands
+            ├── export.py            # /export command (CSV export)
+            ├── report.py            # /status (with month), /categories commands
+            ├── reset.py             # /resetmonth, /reset commands
+            ├── rules.py             # /setbudget, /setdaily, /setmonthly, /setyearly, /delrule commands
+            └── messages/            # command response templates & error messages
 ```
 
 ## Requirements

@@ -1,9 +1,9 @@
 import calendar
 from datetime import datetime
 from typing import Optional, Dict, Tuple
-from db import db
+from db.db import db
 from config import BASE_CURRENCY
-from fx import get_fx_rate, today_key
+from utils.fx import get_fx_rate, today_key
 
 
 def month_key(dt: Optional[datetime] = None) -> str:

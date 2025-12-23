@@ -1,5 +1,5 @@
 from .base import *
-from services import (
+from db.services import (
     add_expense_optional_fx,
     compute_planned_monthly_from_rules,
     compute_spent_this_month,
@@ -11,9 +11,10 @@ from services import (
     list_expenses_filtered,
     delete_expense_by_id,
 )
-from fx import InvalidCurrencyError, CurrencyFormatError, CurrencyNotSupportedError
-from alerts import check_alerts_after_add
-from validators import (
+from ..pagination_callbacks import _format_expenses_page
+from utils.fx import InvalidCurrencyError, CurrencyFormatError, CurrencyNotSupportedError
+from .alerts import check_alerts_after_add
+from utils.validators import (
     validate_amount,
     validate_category,
     validate_name,
@@ -21,7 +22,7 @@ from validators import (
     CategoryValidationError,
     NameValidationError,
 )
-from pagination import PaginationState
+from utils.pagination import PaginationState
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
 
@@ -37,14 +38,6 @@ with open(_error_messages_path, "r") as file:
 
 def _is_month_token(t: str) -> bool:
     return len(t) == 7 and t[4] == "-" and t[:4].isdigit() and t[5:].isdigit()
-
-
-def _is_int_token(t: str) -> bool:
-    try:
-        int(t)
-        return True
-    except Exception:
-        return False
 
 
 @rollover_notify
@@ -322,10 +315,10 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # Format and send first page with buttons
-    page_text = _format_expenses_page(state, user_id)
+    page_text = _format_expenses_page(state)
     
     # Build pagination buttons
-    from pagination import get_pagination_buttons
+    from utils.pagination import get_pagination_buttons
     buttons_data, footer = get_pagination_buttons(
         prefix="expenses",
         current_page=state.current_page,
@@ -350,66 +343,6 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Store pagination state in context for callback handlers
     context.user_data["expenses_pagination"] = state.to_dict()
-
-
-def _format_expenses_page(state: PaginationState, user_id: int) -> str:
-    """
-    Format a single page of expenses from pagination state.
-    
-    Args:
-        state: PaginationState with all expenses
-        user_id: User ID (for reference)
-    
-    Returns:
-        Formatted page content
-    """
-    rows = state.current_page_items
-    
-    title = MESSAGES["expenses_title"].format(
-        month=state.filter_month or "current",
-        category=f' — "{state.filter_category}"' if state.filter_category else ""
-    )
-    
-    if not rows:
-        return MESSAGES["expenses_no_rows"].format(title=title)
-    
-    total = sum(float(r["chf_amount"]) for r in rows)
-    
-    lines = [
-        MESSAGES["expenses_summary"].format(
-            title=title,
-            count=len(rows),
-            total=total,
-            currency=BASE_CURRENCY,
-        ),
-        "",
-    ]
-    
-    for r in rows:
-        eid = r["id"]
-        cat = r["category"]
-        name = r["name"]
-        cur = r["currency"]
-        orig = float(r["original_amount"])
-        chf = float(r["chf_amount"])
-        created = (r["created_at"] or "")[:19].replace("T", " ")
-        
-        if cur == BASE_CURRENCY:
-            lines.append(
-                f"[{eid:4d}] [{cat:<20}] {name:<30} {chf:>8.2f} {BASE_CURRENCY} ({created})"
-            )
-        else:
-            lines.append(
-                f"[{eid:4d}] [{cat:<20}] {name:<30} {orig:>8.2f} {cur} → {chf:>8.2f} {BASE_CURRENCY} ({created})"
-            )
-    
-    lines.append("")
-    lines.append(MESSAGES["expenses_delete_tip"])
-    
-    if state.filter_category is None:
-        lines.append(MESSAGES["expenses_filter_tip"])
-    
-    return "\n".join(lines)
 
 
 @rollover_notify

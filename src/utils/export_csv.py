@@ -1,7 +1,7 @@
 import csv
 import io
 
-from db import db
+from db.db import db
 from config import BASE_CURRENCY
 
 

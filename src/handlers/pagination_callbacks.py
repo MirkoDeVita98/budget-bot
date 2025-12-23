@@ -7,15 +7,15 @@ in the expenses and rules commands.
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from pagination import PaginationState, get_pagination_buttons, get_period_emoji
+from utils.pagination import PaginationState, get_pagination_buttons, get_period_emoji
 from pathlib import Path
 from config import BASE_CURRENCY
 import yaml
 
 # Load messages from YAML files using relative path
 _current_dir = Path(__file__).parent
-_expenses_messages_path = _current_dir / "messages" / "expenses.yaml"
-_rules_messages_path = _current_dir / "messages" / "rules.yaml"
+_expenses_messages_path = _current_dir / "commands" / "messages" / "expenses.yaml"
+_rules_messages_path = _current_dir / "commands" / "messages" / "rules.yaml"
 
 with open(_expenses_messages_path, "r") as file:
     EXPENSES_MESSAGES = yaml.safe_load(file)
@@ -43,7 +43,7 @@ async def expenses_pagination_prev(update: Update, context: ContextTypes.DEFAULT
         return
     
     # Format the page
-    page_text = _format_expenses_page(state, user_id)
+    page_text = _format_expenses_page(state)
     
     # Get pagination buttons
     buttons_data, footer = get_pagination_buttons(
@@ -97,7 +97,7 @@ async def expenses_pagination_next(update: Update, context: ContextTypes.DEFAULT
         return
     
     # Format the page
-    page_text = _format_expenses_page(state, user_id)
+    page_text = _format_expenses_page(state)
     
     # Get pagination buttons
     buttons_data, footer = get_pagination_buttons(
@@ -237,7 +237,7 @@ async def rules_pagination_next(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
 
 
-def _format_expenses_page(state: PaginationState, user_id: int) -> str:
+def _format_expenses_page(state: PaginationState) -> str:
     """
     Format a single page of expenses from pagination state.
     
@@ -290,11 +290,11 @@ def _format_expenses_page(state: PaginationState, user_id: int) -> str:
         
         if cur == BASE_CURRENCY:
             lines.append(
-                f"[{eid:4d}] [{cat:<20}] {name:<30} {chf:>8.2f} {BASE_CURRENCY} ({created})"
+                f"[{eid:4d}] [{cat}] {name:<30} {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
         else:
             lines.append(
-                f"[{eid:4d}] [{cat:<20}] {name:<30} {orig:>8.2f} {cur} → {chf:>8.2f} {BASE_CURRENCY} ({created})"
+                f"[{eid:4d}] [{cat}] {name:<30} {orig:>8.2f} {cur} → {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
     
     lines.append("")

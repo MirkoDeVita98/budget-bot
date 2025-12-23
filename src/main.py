@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import BOT_TOKEN
-from db import init_db, shutdown_db_pool
+from db.db import init_db, shutdown_db_pool
 from handlers.handlers_config import create_handlers_config
 from handlers.pagination_callbacks import (
     expenses_pagination_prev, 
@@ -42,7 +42,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(
                 chat_id=update.effective_chat.id,
                 text="❌ An error occurred while processing your request. "
-                     "The issue has been logged and our team will review it.\n\n"
+                     "The issue has been logged.\n\n"
                      "Please try again in a moment.",
             )
     except Exception as e:

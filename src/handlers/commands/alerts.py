@@ -7,7 +7,7 @@ from config import BASE_CURRENCY
 
 # Load messages from YAML file
 _current_dir = Path(__file__).parent
-_messages_path = _current_dir / "handlers" / "messages" / "alerts.yaml"
+_messages_path = _current_dir / "messages" / "alerts.yaml"
 with open(_messages_path, "r") as file:
     MESSAGES = yaml.safe_load(file)
 
