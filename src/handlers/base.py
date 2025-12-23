@@ -28,13 +28,14 @@ async def reply(
     text: str,
     *,
     parse_mode: str | None = None,
+    reply_markup = None,
 ):
     chat = update.effective_chat
     if update.message is not None:
-        return await update.message.reply_text(text, parse_mode=parse_mode)
+        return await update.message.reply_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
     if chat is not None:
         return await context.bot.send_message(
-            chat_id=chat.id, text=text, parse_mode=parse_mode
+            chat_id=chat.id, text=text, parse_mode=parse_mode, reply_markup=reply_markup
         )
     return None
 

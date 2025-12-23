@@ -21,6 +21,8 @@ from validators import (
     CategoryValidationError,
     NameValidationError,
 )
+from pagination import PaginationState
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 
 
 # Load messages from YAML file using relative path
@@ -261,23 +263,21 @@ async def undo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @rollover_silent
 async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    /expenses [YYYY-MM] [limit] ["Category Name"]
-    /expenses ["Category Name"] [limit]
-    /expenses [YYYY-MM] ["Category Name"] [limit]
+    /expenses [YYYY-MM] ["Category Name"]
+    
+    Shows expenses with pagination (Previous/Next buttons).
+    
     Examples:
-      /expenses
-      /expenses 2025-12
-      /expenses 2025-12 100
-      /expenses "Food & Drinks"
-      /expenses "Food & Drinks" 100
-      /expenses 2025-12 "Food & Drinks" 100
+      /expenses               # Current month
+      /expenses 2025-12       # Specific month
+      /expenses "Food & Drinks"  # Current month, filtered by category
+      /expenses 2025-12 "Food & Drinks"  # Specific month and category
     """
     user_id = update.effective_user.id
     args = parse_quoted_args(update.message.text if update.message else "")
 
     # defaults
     m = month_key()
-    limit = 50
     category = None
 
     # Parse flexible args
@@ -285,28 +285,22 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for a in args:
         if _is_month_token(a):
             m = a
-        elif _is_int_token(a):
-            limit = int(a)
         else:
             leftovers.append(a)
 
     if leftovers:
         category = " ".join(leftovers).strip()
 
-    if limit <= 0:
-        limit = 50
-    if limit > 500:
-        limit = 500  # prevent huge telegram messages
-
     # Validate month format
     if not _is_month_token(m):
         return await reply(
             update,
             context,
-            'Usage: /expenses [YYYY-MM] [limit] [category]\nExample: /expenses 2025-12 50 "Food & Drinks"',
+            'Usage: /expenses [YYYY-MM] ["Category Name"]\nExample: /expenses 2025-12 "Food & Drinks"',
         )
 
-    rows = list_expenses_filtered(user_id, m, limit=limit, category=category)
+    # Get all expenses (no limit - pagination handles display)
+    rows = list_expenses_filtered(user_id, m, limit=1000, category=category)
 
     title = MESSAGES["expenses_title"].format(
         month=m, category=f' — "{category}"' if category else ""
@@ -317,18 +311,80 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
             update, context, MESSAGES["expenses_no_rows"].format(title=title)
         )
 
-    total = sum(float(r["chf_amount"]) for r in rows)
+    # Create pagination state
+    state = PaginationState(
+        items=rows,
+        current_page=0,
+        items_per_page=10,
+        filter_category=category,
+        filter_month=m,
+        callback_prefix="expenses",
+    )
 
+    # Format and send first page with buttons
+    page_text = _format_expenses_page(state, user_id)
+    
+    # Build pagination buttons
+    from pagination import get_pagination_buttons
+    buttons_data, footer = get_pagination_buttons(
+        prefix="expenses",
+        current_page=state.current_page,
+        total_pages=state.total_pages,
+        has_previous=state.has_previous,
+        has_next=state.has_next,
+    )
+    page_text += f"\n\n{footer}"
+    
+    # Build inline keyboard
+    keyboard = []
+    if buttons_data:
+        button_row = []
+        for label, callback in buttons_data:
+            button_row.append(InlineKeyboardButton(label, callback_data=callback))
+        keyboard.append(button_row)
+    
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    
+    # Send message with pagination
+    msg = await reply(update, context, page_text, reply_markup=reply_markup)
+    
+    # Store pagination state in context for callback handlers
+    context.user_data["expenses_pagination"] = state.to_dict()
+
+
+def _format_expenses_page(state: PaginationState, user_id: int) -> str:
+    """
+    Format a single page of expenses from pagination state.
+    
+    Args:
+        state: PaginationState with all expenses
+        user_id: User ID (for reference)
+    
+    Returns:
+        Formatted page content
+    """
+    rows = state.current_page_items
+    
+    title = MESSAGES["expenses_title"].format(
+        month=state.filter_month or "current",
+        category=f' — "{state.filter_category}"' if state.filter_category else ""
+    )
+    
+    if not rows:
+        return MESSAGES["expenses_no_rows"].format(title=title)
+    
+    total = sum(float(r["chf_amount"]) for r in rows)
+    
     lines = [
         MESSAGES["expenses_summary"].format(
             title=title,
-            count=min(limit, len(rows)),
+            count=len(rows),
             total=total,
             currency=BASE_CURRENCY,
         ),
         "",
     ]
-
+    
     for r in rows:
         eid = r["id"]
         cat = r["category"]
@@ -337,7 +393,7 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
         orig = float(r["original_amount"])
         chf = float(r["chf_amount"])
         created = (r["created_at"] or "")[:19].replace("T", " ")
-
+        
         if cur == BASE_CURRENCY:
             lines.append(
                 MESSAGES["expenses_row_base"].format(
@@ -362,19 +418,14 @@ async def expenses(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     created=created,
                 )
             )
-
+    
     lines.append("")
     lines.append(MESSAGES["expenses_delete_tip"])
-
-    # Helpful usage tip
-    if category is None:
+    
+    if state.filter_category is None:
         lines.append(MESSAGES["expenses_filter_tip"])
-    else:
-        lines.append(
-            MESSAGES["expenses_remove_filter_tip"].format(month=m, limit=limit)
-        )
-
-    await reply(update, context, "\n".join(lines))
+    
+    return "\n".join(lines)
 
 
 @rollover_notify

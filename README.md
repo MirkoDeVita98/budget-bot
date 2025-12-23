@@ -163,10 +163,14 @@ budget-bot/
     ├── textparse.py      # text parsing utilities
     ├── export_csv.py     # CSV export functionality
     ├── validators.py     # input validation & sanitization
+    ├── pagination.py     # pagination system for lists (expenses, rules)
+    ├── main.py           # bot entry point (in src/)
     └── handlers/         # Telegram command handlers
         ├── __init__.py
-        ├── base.py       # base handler class & utilities
+        ├── base.py       # base handler utilities & decorators
+        ├── command_menu.py   # bot command menu setup
         ├── handlers_config.py  # centralized command registration
+        ├── pagination_callbacks.py  # inline button handlers for pagination
         ├── setup.py      # /start and /help commands
         ├── report.py     # /status (with month), /categories commands
         ├── rules.py      # budget rules management (/setbudget, /setdaily, /setmonthly, /setyearly, etc.)
@@ -385,6 +389,8 @@ You can specify currency for any rule; it will be converted to BASE_CURRENCY.
 /rules
 ```
 
+The rules list supports pagination (10 rules per page) with Previous/Next navigation buttons for easy browsing through many rules.
+
 - **Delete a rule by ID**
 ```bash
 /delrule <id>
@@ -415,9 +421,9 @@ Add a new expense (amount is required, currency defaults to BASE_CURRENCY):
 
 ### List and Delete Expenses
 
-View your expenses with flexible filtering options:
+View your expenses with flexible filtering options and pagination:
 
-- **Current month expenses** (default: last 50 items)
+- **Current month expenses** (paginated, 10 per page)
 ```bash
 /expenses
 ```
@@ -427,22 +433,37 @@ View your expenses with flexible filtering options:
 /expenses 2025-12
 ```
 
-- **Customize the number shown** (prevents very long messages)
-```bash
-/expenses 2025-12 100
-```
-
 - **Filter by category**
 ```bash
 /expenses "Food & Drinks"
 ```
 
-- **Combine month, category, and limit**
+- **Combine month and category**
 ```bash
-/expenses 2025-12 "Food & Drinks" 100
+/expenses 2025-12 "Food & Drinks"
 ```
 
-Each expense is shown with a unique ID, making it easy to identify and delete specific items.
+**Pagination Features:**
+- Lists are automatically paginated (10 items per page)
+- Use **Previous** (⬅️) and **Next** (➡️) buttons to navigate
+- **Page indicator** shows current page number (e.g., "1/3")
+- **Per-page total** shows the sum of items on the current page
+- **Grand total** shows the sum of all items across all pages (when multiple pages exist)
+- Each expense is shown with a unique ID for easy deletion
+
+**Examples:**
+```
+🧾 Expenses for 2025-12
+Total shown: 105.00 CHF (latest 10)
+📊 Total (all pages): 262.50 CHF
+
+- ID 123: [Food] Coffee — 5.50 CHF (2025-12-23 10:30:00)
+- ID 124: [Food] Groceries — 45.20 CHF (2025-12-23 15:45:00)
+...
+
+[⬅️ Previous] [1/3] [Next ➡️]
+Page 1/3
+```
 
 - **Delete a specific expense by ID**
 ```bash

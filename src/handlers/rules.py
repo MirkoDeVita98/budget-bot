@@ -235,8 +235,21 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not rows:
         return await reply(update, context, MESSAGES["no_rules"])
 
+    # Setup pagination
+    from pagination import PaginationState
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    from pagination import get_pagination_buttons
+    
+    state = PaginationState(
+        items=rows,
+        items_per_page=10,
+        callback_prefix="rules"
+    )
+    
+    # Format first page
+    page_items = state.current_page_items
     lines = [MESSAGES["rules_list_header"].format(currency=BASE_CURRENCY)]
-    for r in rows:
+    for r in page_items:
         lines.append(
             MESSAGES["rules_list_item"].format(
                 id=r["id"],
@@ -248,7 +261,36 @@ async def rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         )
     lines.append(MESSAGES["rules_list_footer"])
-    await reply(update, context, "\n".join(lines))
+    page_text = "\n".join(lines)
+    
+    # Add pagination info if needed
+    if state.total_pages > 1:
+        buttons_data, footer = get_pagination_buttons(
+            prefix="rules",
+            current_page=state.current_page,
+            total_pages=state.total_pages,
+            has_previous=state.has_previous,
+            has_next=state.has_next,
+        )
+        page_text += f"\n\n{footer}"
+        
+        # Build keyboard
+        keyboard = []
+        if buttons_data:
+            button_row = []
+            for label, callback in buttons_data:
+                button_row.append(InlineKeyboardButton(label, callback_data=callback))
+            keyboard.append(button_row)
+        
+        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+        
+        # Store pagination state
+        context.user_data["rules_pagination"] = state.to_dict()
+        
+        await reply(update, context, page_text, reply_markup=reply_markup)
+    else:
+        # No pagination needed
+        await reply(update, context, page_text)
 
 
 @rollover_notify
