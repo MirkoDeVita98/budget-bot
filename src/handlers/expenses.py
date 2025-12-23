@@ -11,6 +11,7 @@ from services import (
     list_expenses_filtered,
     delete_expense_by_id,
 )
+from fx import InvalidCurrencyError, CurrencyFormatError, CurrencyNotSupportedError
 from alerts import check_alerts_after_add
 
 
@@ -138,9 +139,19 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_new_unplanned_category = (not has_plan) and (not had_spend_before)
 
     # Insert expense (with optional FX conversion)
-    fx_date, rate, chf_amount = await add_expense_optional_fx(
-        user_id, category, name, amount, currency, m
-    )
+    try:
+        fx_date, rate, chf_amount = await add_expense_optional_fx(
+            user_id, category, name, amount, currency, m
+        )
+    except CurrencyFormatError:
+        # Invalid format (not 3 letters)
+        return await reply(update, context, MESSAGES["currency_error"])
+    except CurrencyNotSupportedError:
+        # Valid format but not supported by API
+        return await reply(update, context, MESSAGES["currency_not_supported"])
+    except InvalidCurrencyError:
+        # Fallback for any other currency errors
+        return await reply(update, context, MESSAGES["currency_error"])
 
     # AFTER insert: recompute spent
     new_spent_by_cat, new_spent_total = compute_spent_this_month(user_id, m)

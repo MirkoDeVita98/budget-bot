@@ -9,6 +9,7 @@ usage_add: |
     /add Food Groceries 62.40
     /add "Food & Drinks" "Taxi to airport" 20 EUR
 currency_error: "Currency must be a 3-letter code (EUR, USD, ...)."
+currency_not_supported: "⚠️ Currency not supported. Check available currencies at https://api.frankfurter.dev/v1/currencies"
 amount_parse_error: "Couldn't parse amount. Example: /add Travel Taxi 20 EUR"
 add_success_base: "✅ Added: [{category}] {name} = {amount:.2f} {currency}"
 add_success_fx: |

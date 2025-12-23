@@ -95,8 +95,11 @@ Rules are stored internally in **BASE_CURRENCY** for consistency.
 
 ### FX Conversion
 - Uses ECB reference rates via the **Frankfurter API**
-- Rates are cached daily
+- Validates currency codes (3-letter format) and checks against supported currencies
+- Rates are cached daily with **bounded LRU memory cache**
+- **Graceful degradation**: If currency list API is unavailable, the bot uses a 1.0 rate without conversion
 - Ensures deterministic historical conversions
+- Supports all currencies available on [Frankfurter API](https://api.frankfurter.dev/v1/currencies)
 
 ### Notifications (Alerts)
 The bot automatically notifies you when:
