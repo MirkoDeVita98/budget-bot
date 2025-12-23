@@ -1,0 +1,26 @@
+# Error messages for the budget bot
+# Used by handle_exceptions decorator in base.py and errors.py
+
+# User input errors
+invalid_input: "⚠️ Invalid input. Please check your command."
+validation_error: "❌ Input validation failed: {detail}"
+parse_error: "❌ Could not parse your input. {detail}"
+
+# Business logic errors
+budget_error: "❌ Budget operation failed: {detail}"
+rule_error: "❌ Rule operation failed: {detail}"
+expense_error: "❌ Expense operation failed: {detail}"
+
+# External service errors
+database_error: "❌ Database error. Please try again later."
+network_error: "🔌 Connection error. Please check your internet connection."
+api_error: "❌ External service error. Please try again later."
+timeout_error: "⏱️ Request timed out. Please try again."
+
+# Authorization errors
+permission_denied: "🔒 Permission denied. You don't have access to this operation."
+not_found: "❌ The requested resource was not found."
+
+# Generic error
+unexpected_error: "❌ An unexpected error occurred. Please try again later or contact support."
+connection_error: "🔌 Connection error. Please check your internet connection and try again."

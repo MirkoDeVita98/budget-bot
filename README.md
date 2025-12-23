@@ -96,7 +96,8 @@ Rules are stored internally in **BASE_CURRENCY** for consistency.
 ### FX Conversion
 - Uses ECB reference rates via the **Frankfurter API**
 - Validates currency codes (3-letter format) and checks against supported currencies
-- Rates are cached daily with **bounded LRU memory cache**
+- Rates are cached daily with **bounded LRU memory cache** 
+- Separate error messages for format vs availability issues
 - **Graceful degradation**: If currency list API is unavailable, the bot uses a 1.0 rate without conversion
 - Ensures deterministic historical conversions
 - Supports all currencies available on [Frankfurter API](https://api.frankfurter.dev/v1/currencies)
@@ -139,6 +140,8 @@ budget-bot/
     └── handlers/         # Telegram command handlers
         ├── __init__.py
         ├── base.py       # base handler class & utilities
+        ├── errors.py     # custom exceptions & error handling
+        ├── handlers_config.py  # centralized command registration
         ├── setup.py      # /start and /help commands
         ├── report.py     # /status (with month), /categories commands
         ├── rules.py      # budget rules management (/setbudget, /setdaily, /setmonthly, /setyearly, etc.)
@@ -147,6 +150,7 @@ budget-bot/
         ├── reset.py      # /resetmonth and /resetall commands
         └── messages/     # YAML message templates
             ├── base.yaml
+            ├── errors.yaml
             ├── setup.yaml
             ├── report.yaml
             ├── rules.yaml
@@ -228,6 +232,8 @@ DB_PATH=budget.db
 
 ## Running the Bot
 
+### Quick Start (Development)
+
 ```bash
 cd src
 python main.py
@@ -239,7 +245,47 @@ The bot will start polling for messages. Once running:
 3. Send `/start` to initialize and see all available commands
 4. (Optional) Send `/help` to see the help message
 
-**Note:** The bot will continue running until you stop it (Ctrl+C). For persistent hosting, consider using a service like Heroku, AWS, or a VPS.
+### Running Persistently (Using screen)
+
+To keep the bot running even when you close your terminal, use `screen`:
+
+```bash
+cd src
+screen -S budget-bot python main.py
+```
+
+**Commands:**
+- **Detach session** (leave bot running): `Ctrl+A` then `D`
+- **Reattach to session**: `screen -r budget-bot`
+- **List running sessions**: `screen -ls`
+- **Kill session**: `screen -S budget-bot -X quit`
+
+**Example workflow:**
+```bash
+# Start the bot in a detached screen session
+screen -S budget-bot python main.py
+
+# Detach with Ctrl+A then D
+# Bot continues running
+
+# Later, check on it
+screen -r budget-bot
+
+# View logs (bot output)
+```
+
+**Note:** The bot will continue running until you explicitly kill the screen session. Your PC can sleep/close without affecting the bot.
+
+## Error Handling
+
+The bot includes comprehensive error handling:
+
+- **Custom Exceptions**: Organized error types (input, business logic, external services)
+- **User-Friendly Messages**: Clear, actionable error messages sent to Telegram
+- **Logging System**: Errors logged with appropriate severity levels
+- **Global Error Handler**: Catches unhandled exceptions at the application level
+
+See `handlers/errors.py` and `handlers/messages/errors.yaml` for details.
 
 ## Usage Guide
 

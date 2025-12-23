@@ -6,13 +6,18 @@ from telegram.ext import ContextTypes
 from services import ensure_rollover_snapshot, month_key
 from textparse import parse_quoted_args
 from config import BASE_CURRENCY, DB_PATH
+from .errors import BudgetBotError, get_error_message
 import yaml
 
-# Load messages from YAML file using relative path
+# Load messages from YAML files using relative path
 _current_dir = Path(__file__).parent
-_messages_path = _current_dir / "messages" / "base.yaml"
-with open(_messages_path, "r") as file:
+_base_messages_path = _current_dir / "messages" / "base.yaml"
+_errors_messages_path = _current_dir / "messages" / "errors.yaml"
+
+with open(_base_messages_path, "r") as file:
     MESSAGES = yaml.safe_load(file)
+with open(_errors_messages_path, "r") as file:
+    ERROR_MESSAGES = yaml.safe_load(file)
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +27,43 @@ def get_args(update: Update):
 
 
 def handle_exceptions(fn):
+    """
+    Decorator for graceful error handling in command handlers.
+    Catches BudgetBotError exceptions with custom messages,
+    and standard exceptions with generic messages.
+    """
     @wraps(fn)
     async def wrapper(
         update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
     ):
         try:
             return await fn(update, context, *args, **kwargs)
+        except BudgetBotError as e:
+            # Handle custom budget bot errors with user-friendly messages
+            error_message = get_error_message(e)
+            logger.warning(f"{type(e).__name__} in {fn.__name__}: {e}")
+            await reply(update, context, error_message)
         except ValueError as e:
             logger.warning(f"ValueError in {fn.__name__}: {e}")
-            await reply(update, context, MESSAGES["invalid_input"])
+            await reply(update, context, ERROR_MESSAGES.get("invalid_input", "⚠️ Invalid input."))
+        except KeyError as e:
+            logger.warning(f"KeyError in {fn.__name__}: {e}")
+            await reply(update, context, ERROR_MESSAGES.get("invalid_input", "⚠️ Invalid input."))
+        except ConnectionError as e:
+            logger.error(f"ConnectionError in {fn.__name__}: {e}")
+            await reply(update, context, ERROR_MESSAGES.get("connection_error", "🔌 Connection error."))
+        except TimeoutError as e:
+            logger.error(f"TimeoutError in {fn.__name__}: {e}")
+            await reply(update, context, ERROR_MESSAGES.get("timeout_error", "⏱️ Request timed out."))
+        except PermissionError as e:
+            logger.warning(f"PermissionError in {fn.__name__}: {e}")
+            await reply(update, context, ERROR_MESSAGES.get("permission_error", "🔒 Permission denied."))
         except Exception as e:
-            logger.error(f"Unhandled exception in {fn.__name__}: {e}", exc_info=True)
-            await reply(update, context, MESSAGES["unexpected_error"])
+            logger.error(
+                f"Unhandled exception in {fn.__name__}: {type(e).__name__}: {e}",
+                exc_info=True,
+            )
+            await reply(update, context, ERROR_MESSAGES.get("unexpected_error", "❌ An unexpected error occurred."))
 
     return wrapper
 
