@@ -53,9 +53,16 @@ setmonthly_success_fx: |
   {amount:.2f} {currency}/month → {converted:.2f} {base_currency}/month (rate {rate:.6f}, {fx_date})
 
 no_rules: "No rules yet."
-rules_list_header: "📌 Rules (stored in {currency}):"
+rules_list_header: "📌 Rules:"
+rules_list_footer: |
+  
+  📋 Legend:
+  ☀️  = Daily
+  📅 = Monthly
+  📆 = Yearly
+  
+  Delete one with: /delrule <id>
 rules_list_item: "- ID {id}: [{category}] {name} — {amount:.2f} {currency} / {period}"
-rules_list_footer: "\nDelete one with: /delrule <id>"
 
 usage_delrule: "Usage: /delrule <id>"
 rule_id_error: "Rule id must be an integer."

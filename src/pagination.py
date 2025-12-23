@@ -130,3 +130,39 @@ def format_pagination_footer(
     end_item = min((current_page + 1) * items_per_page, item_count)
     
     return f"Page {current_page + 1}/{total_pages} (showing items {start_item}-{end_item} of {item_count})"
+
+
+def get_period_abbreviation(period: str) -> str:
+    """
+    Convert period name to abbreviation.
+    
+    Args:
+        period: Period name (daily, monthly, yearly)
+    
+    Returns:
+        Abbreviation (d, m, y) or original if unknown
+    """
+    abbr_map = {
+        "daily": "d",
+        "monthly": "m",
+        "yearly": "y",
+    }
+    return abbr_map.get(period, period)
+
+
+def get_period_emoji(period: str) -> str:
+    """
+    Convert period name to emoji indicator.
+    
+    Args:
+        period: Period name (daily, monthly, yearly)
+    
+    Returns:
+        Emoji (☀️, 📅, 📆) or original if unknown
+    """
+    emoji_map = {
+        "daily": "☀️",
+        "monthly": "📅",
+        "yearly": "📆",
+    }
+    return emoji_map.get(period, period)

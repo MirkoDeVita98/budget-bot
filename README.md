@@ -137,6 +137,24 @@ The bot automatically notifies you when:
 
 Alerts are triggered immediately after adding an expense.
 
+### Pagination System
+
+The bot uses an intelligent pagination system for displaying large lists of expenses and rules:
+
+**Features:**
+- **Automatic pagination**: Lists are split into pages of 10 items each
+- **Inline navigation**: Previous/Next buttons appear as clickable buttons in the message
+- **Smart totals**: Each page shows its sum, and a grand total of all pages when multiple pages exist
+- **First page legend**: Rules display a helpful legend on the first page only (☀️ Daily, 📅 Monthly, 📆 Yearly)
+- **Persistent state**: Navigation state is stored per user, so you can navigate and come back later
+- **Stateless buttons**: Works entirely through inline button callbacks with no long-term session storage
+
+**How it works:**
+1. Send `/rules` or `/expenses` to see the first page
+2. Use the **Previous** (⬅️) and **Next** (➡️) buttons to navigate
+3. The **page indicator** shows your current position (e.g., "1/3")
+4. Totals update automatically based on the current page
+
 ---
 
 ## Project Structure
@@ -393,24 +411,29 @@ Rules are organized by category with totals per category, making it easy to see 
 
 **Example output:**
 ```
-📌 Rules (stored in CHF):
+📌 Rules:
 
-📁 Food & Drinks
-   Total: 65.00 CHF
-   - ID 1: Daily food — 15.00 CHF / daily
-   - ID 2: Groceries — 50.00 CHF / monthly
 
-📁 Subscriptions
-   Total: 16.99 CHF
-   - ID 5: Netflix — 16.99 CHF / monthly
+�📁 Food & Drinks — Total: 65.00 CHF
+[  1] Daily food           15.00 ☀️
+[  2] Groceries            50.00 📅
 
-📁 Transport
-   Total: 300.00 CHF
-   - ID 3: Public transport — 100.00 CHF / monthly
-   - ID 4: Car fuel — 200.00 CHF / monthly
+📁 Subscriptions — Total: 16.99 CHF
+[  5] Netflix              16.99 📅
+
+📁 Transport — Total: 300.00 CHF
+[  3] Public transport    100.00 📅
+[  4] Car fuel            200.00 📅
+
+Delete one with: /delrule <id>
 ```
 
-- **Delete a rule by ID**
+**Legend**:
+- ☀️  = Daily rule (scaled to month)
+- 📅 = Monthly rule
+- 📆 = Yearly rule (divided by 12)
+
+**Delete a rule by ID**
 ```bash
 /delrule <id>
 ```
@@ -473,12 +496,12 @@ View your expenses with flexible filtering options and pagination:
 **Examples:**
 ```
 🧾 Expenses for 2025-12
-Total shown: 105.00 CHF (latest 10)
+Total shown: 135.80 CHF (3 items)
 📊 Total (all pages): 262.50 CHF
 
-- ID 123: [Food] Coffee — 5.50 CHF (2025-12-23 10:30:00)
-- ID 124: [Food] Groceries — 45.20 CHF (2025-12-23 15:45:00)
-...
+[   1] [Food & Drinks ] Groceries at Coop      45.50 CHF (2025-12-23 10:30:00)
+[   2] [Transport     ] Taxi to airport        25.00 EUR → 27.50 CHF (2025-12-23 14:15:00)
+[   3] [Food & Drinks ] Restaurant dinner     62.80 CHF (2025-12-23 19:45:00)
 
 [⬅️ Previous] [1/3] [Next ➡️]
 Page 1/3
@@ -486,7 +509,7 @@ Page 1/3
 
 - **Delete a specific expense by ID**
 ```bash
-/delexpense 123
+/delexpense 1
 ```
 
 Use `/expenses` to see the IDs, then use `/delexpense <id>` to remove unwanted items.

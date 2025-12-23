@@ -396,27 +396,11 @@ def _format_expenses_page(state: PaginationState, user_id: int) -> str:
         
         if cur == BASE_CURRENCY:
             lines.append(
-                MESSAGES["expenses_row_base"].format(
-                    id=eid,
-                    category=cat,
-                    name=name,
-                    amount=chf,
-                    currency=BASE_CURRENCY,
-                    created=created,
-                )
+                f"[{eid:4d}] [{cat:<20}] {name:<30} {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
         else:
             lines.append(
-                MESSAGES["expenses_row_fx"].format(
-                    id=eid,
-                    category=cat,
-                    name=name,
-                    amount=orig,
-                    currency=cur,
-                    converted=chf,
-                    base_currency=BASE_CURRENCY,
-                    created=created,
-                )
+                f"[{eid:4d}] [{cat:<20}] {name:<30} {orig:>8.2f} {cur} → {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
     
     lines.append("")

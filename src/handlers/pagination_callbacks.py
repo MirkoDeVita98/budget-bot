@@ -7,7 +7,7 @@ in the expenses and rules commands.
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
-from pagination import PaginationState, get_pagination_buttons
+from pagination import PaginationState, get_pagination_buttons, get_period_emoji
 from pathlib import Path
 from config import BASE_CURRENCY
 import yaml
@@ -150,7 +150,7 @@ async def rules_pagination_prev(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     # Format the page
-    page_text = _format_rules_page(state)
+    page_text = _format_rules_page(state, is_first_page=False)
     
     # Get pagination buttons
     buttons_data, footer = get_pagination_buttons(
@@ -203,7 +203,7 @@ async def rules_pagination_next(update: Update, context: ContextTypes.DEFAULT_TY
         return
     
     # Format the page
-    page_text = _format_rules_page(state)
+    page_text = _format_rules_page(state, is_first_page=False)
     
     # Get pagination buttons
     buttons_data, footer = get_pagination_buttons(
@@ -290,27 +290,11 @@ def _format_expenses_page(state: PaginationState, user_id: int) -> str:
         
         if cur == BASE_CURRENCY:
             lines.append(
-                EXPENSES_MESSAGES["expenses_row_base"].format(
-                    id=eid,
-                    category=cat,
-                    name=name,
-                    amount=chf,
-                    currency=BASE_CURRENCY,
-                    created=created,
-                )
+                f"[{eid:4d}] [{cat:<20}] {name:<30} {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
         else:
             lines.append(
-                EXPENSES_MESSAGES["expenses_row_fx"].format(
-                    id=eid,
-                    category=cat,
-                    name=name,
-                    amount=orig,
-                    currency=cur,
-                    converted=chf,
-                    base_currency=BASE_CURRENCY,
-                    created=created,
-                )
+                f"[{eid:4d}] [{cat:<20}] {name:<30} {orig:>8.2f} {cur} → {chf:>8.2f} {BASE_CURRENCY} ({created})"
             )
     
     lines.append("")
@@ -322,17 +306,19 @@ def _format_expenses_page(state: PaginationState, user_id: int) -> str:
     return "\n".join(lines)
 
 
-def _format_rules_page(state: PaginationState) -> str:
+def _format_rules_page(state: PaginationState, is_first_page: bool = True) -> str:
     """
     Format a single page of rules from pagination state, grouped by category.
     
     Args:
         state: PaginationState with all rules
+        is_first_page: Whether this is the first page (shows legend at end)
     
     Returns:
         Formatted page content with rules grouped by category
     """
     rows = state.current_page_items
+    max_name_len = 20  # Cap name length
     
     # Group rules by category
     categories = {}
@@ -344,19 +330,23 @@ def _format_rules_page(state: PaginationState) -> str:
         categories[cat]["total"] += float(r["amount"])
     
     # Build output
-    lines = [RULES_MESSAGES["rules_list_header"].format(currency=BASE_CURRENCY), ""]
+    lines = [RULES_MESSAGES["rules_list_header"], ""]
     
     for category in sorted(categories.keys()):
         cat_data = categories[category]
-        lines.append(f"📁 {category}")
-        lines.append(f"   Total: {cat_data['total']:.2f} {BASE_CURRENCY}")
+        lines.append(f"📁 {category} — Total: {cat_data['total']:.2f} {BASE_CURRENCY}")
         
         for r in cat_data["rules"]:
+            period_emoji = get_period_emoji(r['period'])
+            # Cap name and pad to max_name_len
+            name = r['name'][:max_name_len].ljust(max_name_len)
             lines.append(
-                f"   - ID {r['id']}: {r['name']} — {float(r['amount']):.2f} {BASE_CURRENCY} / {r['period']}"
+                f"[{r['id']:3d}] {name} {float(r['amount']):>8.2f} {period_emoji}"
             )
         lines.append("")
     
-    lines.append(RULES_MESSAGES["rules_list_footer"])
+    # Add footer with legend only on first page
+    if is_first_page:
+        lines.append(RULES_MESSAGES["rules_list_footer"])
     
     return "\n".join(lines)
