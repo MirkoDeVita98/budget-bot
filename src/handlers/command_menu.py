@@ -58,10 +58,7 @@ async def setup_command_menu(app: Application) -> None:
         commands = []
         for config in handlers_config.get_all_commands():
             description = descriptions.get(config.primary_command, "")
-            # Telegram allows max 512 characters for description
-            # Keep it concise
             if description:
-                # Remove emoji for display (Telegram shows them, but keep them short)
                 description = description[:100]  # Telegram max is 256 but keep shorter
 
             commands.append(

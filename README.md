@@ -117,7 +117,7 @@ The bot validates all user input to prevent invalid data and provide clear feedb
 - Length: **1-50 characters**
 - Forbidden characters: `< > " ' / \ | ` and line breaks
 - Example valid names: `Food`, `Transport`, `Car Insurance`
-- Example invalid: `Food<script>`, line breaks in the middle
+- Example invalid: `Food|Drinks`, line breaks in the middle
 
 **Name/Description Constraints:**
 - Length: **1-100 characters**
@@ -423,7 +423,7 @@ Rules are organized by category with totals per category, making it easy to see 
 📌 Rules:
 
 
-�📁 Food & Drinks — Total: 65.00 CHF
+📁 Food & Drinks — Total: 65.00 CHF
 [  1] Daily food           15.00 ☀️
 [  2] Groceries            50.00 📅
 
