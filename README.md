@@ -102,6 +102,31 @@ Rules are stored internally in **BASE_CURRENCY** for consistency.
 - Ensures deterministic historical conversions
 - Supports all currencies available on [Frankfurter API](https://api.frankfurter.dev/v1/currencies)
 
+### Input Validation
+
+The bot validates all user input to prevent invalid data and provide clear feedback:
+
+**Amount Constraints:**
+- Minimum: **0.01** (prevents zero/negative amounts)
+- Maximum: **999,999.99** (prevents unreasonable values)
+
+**Category Name Constraints:**
+- Length: **1-50 characters**
+- Forbidden characters: `< > " ' / \ | ` and line breaks
+- Example valid names: `Food`, `Transport`, `Car Insurance`
+- Example invalid: `Food<script>`, line breaks in the middle
+
+**Name/Description Constraints:**
+- Length: **1-100 characters**
+- Forbidden characters: Line breaks and tabs
+- Example valid: `Groceries at Coop`, `Monthly Netflix subscription`
+
+**Budget Constraints:**
+- Minimum: **0.01** per month
+- Maximum: **999,999.99** per month
+
+All inputs are trimmed (leading/trailing whitespace removed) automatically. If validation fails, the bot provides a specific error message guiding you to fix the input.
+
 ### Notifications (Alerts)
 The bot automatically notifies you when:
 
@@ -137,6 +162,7 @@ budget-bot/
     ├── alerts.py         # alert system for budget notifications
     ├── textparse.py      # text parsing utilities
     ├── export_csv.py     # CSV export functionality
+    ├── validators.py     # input validation & sanitization
     └── handlers/         # Telegram command handlers
         ├── __init__.py
         ├── base.py       # base handler class & utilities

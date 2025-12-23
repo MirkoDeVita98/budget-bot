@@ -13,6 +13,14 @@ from services import (
 )
 from fx import InvalidCurrencyError, CurrencyFormatError, CurrencyNotSupportedError
 from alerts import check_alerts_after_add
+from validators import (
+    validate_amount,
+    validate_category,
+    validate_name,
+    AmountValidationError,
+    CategoryValidationError,
+    NameValidationError,
+)
 
 
 # Load messages from YAML file using relative path
@@ -127,6 +135,19 @@ async def add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await reply(update, context, MESSAGES["usage_add"])
     
     name = name or "(no name)"
+
+    # Validate inputs before inserting
+    try:
+        amount = validate_amount(amount, field_name="amount")
+        category = validate_category(category)
+        if name != "(no name)":
+            name = validate_name(name, field_name="name")
+    except AmountValidationError as e:
+        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("amount_parse_error", "Invalid amount")))
+    except CategoryValidationError as e:
+        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("invalid_input", "Invalid category")))
+    except NameValidationError as e:
+        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("invalid_input", "Invalid name")))
 
     # BEFORE insert: baseline for alert crossings
     planned_by_cat, planned_total = compute_planned_monthly_from_rules(user_id, m)

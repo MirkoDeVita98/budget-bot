@@ -21,6 +21,18 @@ timeout_error: "⏱️ Request timed out. Please try again."
 permission_denied: "🔒 Permission denied. You don't have access to this operation."
 not_found: "❌ The requested resource was not found."
 
+# Validation errors
+amount_too_small: "❌ Amount must be at least 0.01. Please use a larger amount."
+amount_too_large: "❌ Amount is too large (max 999,999.99). Please use a smaller amount."
+budget_too_small: "❌ Budget must be at least 0.01. Please use a larger amount."
+budget_too_large: "❌ Budget is too large (max 999,999.99). Please use a smaller amount."
+empty_category: "❌ Category name cannot be empty. Please provide a valid category."
+category_too_long: "❌ Category name is too long (max 50 characters). Please shorten it."
+invalid_category_format: "❌ Category name contains invalid characters. Please avoid: < > \" ' / \\ | and line breaks."
+empty_name: "❌ Name cannot be empty. Please provide a valid name."
+name_too_long: "❌ Name is too long (max 100 characters). Please shorten it."
+invalid_name_format: "❌ Name contains invalid characters. Please avoid line breaks and tabs."
+
 # Generic error
 unexpected_error: "❌ An unexpected error occurred. Please try again later or contact support."
 connection_error: "🔌 Connection error. Please check your internet connection and try again."

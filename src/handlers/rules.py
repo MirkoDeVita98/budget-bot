@@ -9,6 +9,16 @@ from services import (
     upsert_budget,
     month_key,
 )
+from validators import (
+    validate_budget,
+    validate_amount,
+    validate_category,
+    validate_name,
+    BudgetValidationError,
+    AmountValidationError,
+    CategoryValidationError,
+    NameValidationError,
+)
 
 
 # Load messages from YAML file using relative path
@@ -30,6 +40,12 @@ async def setbudget(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = parse_amount(args[0])
     except ValueError:
         return await reply(update, context, MESSAGES["parse_amount_error"])
+
+    # Validate budget amount
+    try:
+        amount = validate_budget(amount)
+    except BudgetValidationError as e:
+        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get("parse_amount_error", "Invalid budget")))
 
     m = month_key()
     upsert_budget(user_id, m, amount)
@@ -71,6 +87,13 @@ async def _handle_rule_setter(
         except Exception:
             return await reply(update, context, MESSAGES[error_key])
 
+        # Validate inputs
+        try:
+            amt = validate_amount(amt, field_name="amount")
+            category = validate_category(category)
+        except (AmountValidationError, CategoryValidationError) as e:
+            return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get(error_key, "Invalid input")))
+
         add_rule(user_id, category, f"{category} {period}", period, amt)
         return await reply(
             update,
@@ -102,6 +125,15 @@ async def _handle_rule_setter(
         return await reply(update, context, MESSAGES[error_key])
 
     rule_name = " ".join(args[1:name_end_index]).strip() or "(no name)"
+
+    # Validate inputs
+    try:
+        amount = validate_amount(amount, field_name="amount")
+        category = validate_category(category)
+        if rule_name != "(no name)":
+            rule_name = validate_name(rule_name, field_name="name")
+    except (AmountValidationError, CategoryValidationError, NameValidationError) as e:
+        return await reply(update, context, ERROR_MESSAGES.get(e.message, MESSAGES.get(error_key, "Invalid input")))
 
     fx_date, rate, chf_amount = await add_rule_named_fx(
         user_id, rule_name, amount, currency, category, period
