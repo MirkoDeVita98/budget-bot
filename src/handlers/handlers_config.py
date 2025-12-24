@@ -8,7 +8,7 @@ making it easy to add, modify, or remove commands without touching main.py.
 from dataclasses import dataclass
 from typing import Callable, Awaitable
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, CallbackQueryHandler
 
 
 @dataclass
@@ -68,6 +68,22 @@ class HandlersRegistry:
             ):
                 return config
         return None
+
+    def get_pagination_handlers(self) -> list[CallbackQueryHandler]:
+        """Get all pagination callback handlers for expenses and rules."""
+        from .pagination_callbacks import (
+            expenses_pagination_prev,
+            expenses_pagination_next,
+            rules_pagination_prev,
+            rules_pagination_next,
+        )
+
+        return [
+            CallbackQueryHandler(expenses_pagination_prev, pattern="^expenses_prev$"),
+            CallbackQueryHandler(expenses_pagination_next, pattern="^expenses_next$"),
+            CallbackQueryHandler(rules_pagination_prev, pattern="^rules_prev$"),
+            CallbackQueryHandler(rules_pagination_next, pattern="^rules_next$"),
+        ]
 
 
 def create_handlers_config() -> HandlersRegistry:

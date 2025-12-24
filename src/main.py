@@ -1,17 +1,11 @@
 import logging
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler
+from telegram.ext import Application, CommandHandler
 from telegram import Update
 from telegram.ext import ContextTypes
 
 from config import BOT_TOKEN
 from db.db import init_db, shutdown_db_pool
 from handlers.handlers_config import create_handlers_config
-from handlers.pagination_callbacks import (
-    expenses_pagination_prev,
-    expenses_pagination_next,
-    rules_pagination_prev,
-    rules_pagination_next,
-)
 from handlers.command_menu import setup_command_menu
 
 # Configure logging
@@ -83,14 +77,8 @@ def main():
                 app.add_handler(CommandHandler(alias, command_config.handler_function))
 
     # Register pagination callback handlers
-    app.add_handler(
-        CallbackQueryHandler(expenses_pagination_prev, pattern="^expenses_prev$")
-    )
-    app.add_handler(
-        CallbackQueryHandler(expenses_pagination_next, pattern="^expenses_next$")
-    )
-    app.add_handler(CallbackQueryHandler(rules_pagination_prev, pattern="^rules_prev$"))
-    app.add_handler(CallbackQueryHandler(rules_pagination_next, pattern="^rules_next$"))
+    for pagination_handler in handlers_config.get_pagination_handlers():
+        app.add_handler(pagination_handler)
 
     logger.info("🤖 Bot started successfully")
     try:

@@ -172,7 +172,7 @@ class BudgetReport:
 async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
-    # args support quotes and smart quotes (via textparse)
+    # args support quotes and smart quotes
     args = get_args(update)
 
     # Modes:

@@ -186,8 +186,7 @@ budget-bot/
     │   ├── export_csv.py   # CSV export functionality
     │   ├── fx.py           # FX API integration & currency conversion
     │   ├── pagination.py   # pagination system for lists (expenses, rules)
-    │   ├── textparse.py    # text parsing utilities
-    │   └── validators.py   # input validation & sanitization
+    │   └── validators.py   # input validation, sanitization & text parsing
     └── handlers/           # Telegram command handlers & callbacks
         ├── __init__.py
         ├── handlers_config.py       # centralized command registration
